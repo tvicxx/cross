@@ -1,0 +1,22 @@
+{
+  "elia": {
+    "password": "zanca",
+    "isLogged": false
+  },
+  "erne": {
+    "password": "fefe",
+    "isLogged": false
+  },
+  "pippo": {
+    "password": "ciao",
+    "isLogged": false
+  },
+  "tommaso": {
+    "password": "psw",
+    "isLogged": false
+  },
+  "loren": {
+    "password": "cate",
+    "isLogged": false
+  }
+}
