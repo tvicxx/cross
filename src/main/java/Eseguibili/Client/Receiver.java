@@ -39,6 +39,10 @@ public class Receiver implements Runnable{
                             else printer.print("[Client] " + Ansi.RED + error + Ansi.RESET);
                         break;
                         case "updateCredentials":
+                            if(error.equals("OK")){
+                                printer.print("[Client] " + Ansi.GREEN + "Credentials updated successfully!" + Ansi.RESET);
+                            }
+                            else printer.print("[Client] " + Ansi.RED + error + Ansi.RESET);
                         break;
                         case "login":
                             if(error.equals("OK")){

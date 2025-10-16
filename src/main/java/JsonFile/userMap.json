@@ -8,8 +8,8 @@
     "isLogged": false
   },
   "pippo": {
-    "password": "ciao",
-    "isLogged": false
+    "password": "pluto",
+    "isLogged": true
   },
   "tommaso": {
     "password": "psw",

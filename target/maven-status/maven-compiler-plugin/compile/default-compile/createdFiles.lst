@@ -1,6 +1,7 @@
 GsonClasses/Commands/GsonUser.class
 Eseguibili/Server/Worker$SharedState.class
 GsonClasses/Values.class
+GsonClasses/Commands/GsonUpdateCredentials.class
 Varie/Ansi.class
 Eseguibili/Main/ClientMain$SharedData.class
 Eseguibili/Server/Tupla.class

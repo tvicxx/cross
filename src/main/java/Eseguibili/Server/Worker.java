@@ -112,7 +112,8 @@ public class Worker implements Runnable {
                                     else if((userMap.get(username)).getIsLogged()){
                                         response.setResponse("login", 102, "user already logged");
                                         response.sendMessage(gson,writer);
-                                    }else if(onlineUser != null){
+                                    }
+                                    else if(onlineUser != null){
                                         response.setResponse("login", 103, "other error cases");
                                         response.sendMessage(gson, writer);
                                     }
@@ -128,6 +129,48 @@ public class Worker implements Runnable {
                                 }
                                 catch(Exception e){
                                     response.setResponse("login", 103, e.getMessage());
+                                    response.sendMessage(gson,writer);
+                                }
+                            break;
+
+                            case "updateCredentials":
+                                objValues = obj.getAsJsonObject("values");
+                                GsonUpdateCredentials valuesUC = new Gson().fromJson(objValues, GsonUpdateCredentials.class);
+
+                                username = valuesUC.getUsername();
+                                String old_password = valuesUC.getOldPassword();
+                                String new_password = valuesUC.getNewPassword();
+
+                                System.out.printf(Ansi.YELLOW + "[--WORKER %s--] " + Ansi.RESET + "Updating credentials for user %s\n", Thread.currentThread().getName(), username);
+
+                                try{
+                                    if(onlineUser != null){
+                                        response.setResponse("updateCredentials", 104, "user currently logged in");
+                                        response.sendMessage(gson,writer);
+                                    }
+                                    else if(userMap.containsKey(username) == false || (userMap.get(username)).getPassword().equals(old_password) == false){
+                                        response.setResponse("updateCredentials", 102, "username/old_password mismatch or non existent username");
+                                        response.sendMessage(gson,writer);
+                                    }
+                                    else if(old_password.equals(new_password) == true){
+                                            response.setResponse("updateCredentials", 103, "new password equals to old one");
+                                            response.sendMessage(gson,writer);
+                                    }
+                                    else if(validateString(new_password) == false){
+                                        response.setResponse("updateCredentials", 101, "invalid new password");
+                                        response.sendMessage(gson,writer);
+                                    }
+                                    else{
+                                        userMap.replace(username, new Tupla(new_password, false));
+                                        updateUserMap(userMap);
+                                        
+                                        response.setResponse("updateCredentials", 100, "OK");
+                                        response.sendMessage(gson,writer);
+                                    }
+                                    
+                                }
+                                catch (Exception e){
+                                    response.setResponse("updateCredentials", 105, "other error cases");
                                     response.sendMessage(gson,writer);
                                 }
                             break;

@@ -11,7 +11,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import Eseguibili.Client.*;
 import Varie.*;
 import GsonClasses.*;
-import GsonClasses.Commands.GsonUser;
+import GsonClasses.Commands.*;
 
 public class ClientMain{
 
@@ -52,9 +52,6 @@ public class ClientMain{
     public static final String configFile = "src/main/java/client.properties";
     public static String hostname;          // Nome host del server
     public static int TCPport;
-
-    private static String username;
-    private static String password;
 
     private static Socket SocketTCP;
     private static BufferedReader reader;
@@ -109,19 +106,25 @@ public class ClientMain{
                             break;
                             
                             case "register":
-                                username = command[1];
-                                password = command[2];
-
-                                mesGson = new GsonMess<Values>("register", new GsonUser(username, password));
+                                mesGson = new GsonMess<Values>("register", new GsonUser(command[1], command[2]));
                                 writer.println(mesGson.toString());
                             break;
 
-                            case "login":
-                                username = command[1];
-                                password = command[2];
+                            case "updateCredentials":
+                                if(shared.isLogged.get() == false){
+                                    mesGson = new GsonMess<Values>("updateCredentials", new GsonUpdateCredentials(command[1], command[2], command[3]));
+                                    writer.println(mesGson.toString());
+                                }
+                                else{
+                                    printer.print("[Client] "+ Ansi.RED + "You are already logged in. Log out to update your credentials." + Ansi.RESET);
+                                    printer.prompt();
+                                }
+                            break;
 
-                                mesGson = new GsonMess<Values>("login", new GsonUser(username, password));
+                            case "login":
+                                mesGson = new GsonMess<Values>("login", new GsonUser(command[1], command[2]));
                                 writer.println(mesGson.toString());
+
                             break;
 
                             case "logout":
