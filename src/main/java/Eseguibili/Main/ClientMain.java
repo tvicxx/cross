@@ -5,6 +5,7 @@ import java.net.*;
 import java.util.*;
 //import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import com.google.gson.Gson;
 
 //import org.ietf.jgss.GSSException;
 
@@ -58,6 +59,7 @@ public class ClientMain{
     private static PrintWriter writer;
     private static Thread receiverTCP;
     private static Scanner scannerInput = new Scanner(System.in);
+    private static Gson gson = new Gson();
     private static GsonMess<Values> mesGson;
 
     public static class SharedData{
@@ -106,14 +108,20 @@ public class ClientMain{
                             break;
                             
                             case "register":
-                                mesGson = new GsonMess<Values>("register", new GsonUser(command[1], command[2]));
-                                writer.println(mesGson.toString());
+                                if(shared.isLogged.get() == false){
+                                    mesGson = new GsonMess<Values>("register", new GsonUser(command[1], command[2]));
+                                    writer.println(gson.toJson(mesGson));
+                                }
+                                else{
+                                    printer.print("[Client] "+ Ansi.RED + "You are already logged in. Log out to register a new user." + Ansi.RESET);
+                                    printer.prompt();
+                                }
                             break;
 
                             case "updateCredentials":
                                 if(shared.isLogged.get() == false){
                                     mesGson = new GsonMess<Values>("updateCredentials", new GsonUpdateCredentials(command[1], command[2], command[3]));
-                                    writer.println(mesGson.toString());
+                                    writer.println(gson.toJson(mesGson));
                                 }
                                 else{
                                     printer.print("[Client] "+ Ansi.RED + "You are already logged in. Log out to update your credentials." + Ansi.RESET);
@@ -123,14 +131,14 @@ public class ClientMain{
 
                             case "login":
                                 mesGson = new GsonMess<Values>("login", new GsonUser(command[1], command[2]));
-                                writer.println(mesGson.toString());
+                                writer.println(gson.toJson(mesGson));
 
                             break;
 
                             case "logout":
                                 if(shared.isLogged.get()){
                                     mesGson = new GsonMess<Values>("logout", null);
-                                    writer.println(mesGson.toString());
+                                    writer.println(gson.toJson(mesGson));
                                     shared.isLogged.set(false);
                                 }
                                 else{
@@ -138,6 +146,32 @@ public class ClientMain{
                                     printer.prompt();
                                 }
                             break;
+
+                            case "insertlimitOrder":
+                                try{
+                                    String type = command[1].toLowerCase();
+                                    int size = Integer.parseInt(command[2]);
+                                    int limitPrice = Integer.parseInt(command[3]);
+                                    if(type.equals("ask") || type.equals("bid")){
+                                        if(shared.isLogged.get()){
+                                            mesGson = new GsonMess<Values>("insertLimitOrder", new GsonLimitStopOrder(type, size, limitPrice));
+                                            writer.println(gson.toJson(mesGson));
+                                        }
+                                        else{
+                                            printer.print("[Client] "+ Ansi.RED + "You must be logged in to insert an order." + Ansi.RESET);
+                                            printer.prompt();
+                                        }
+                                    }
+                                    else{
+                                        printer.print("[Client] "+ Ansi.RED + "Invalid order type. 'tipo' must be 'ask' or 'bid'." + Ansi.RESET);
+                                        printer.prompt();
+                                    }
+                                }
+                                catch(NumberFormatException e){
+                                    printer.print("[Client] "+ Ansi.RED + "Invalid parameters for insertLimitOrder. 'dimensione' and 'prezzoLimite' must be integers." + Ansi.RESET);
+                                    printer.prompt();
+                                    break;
+                                }
                         }
                     }
                     else{

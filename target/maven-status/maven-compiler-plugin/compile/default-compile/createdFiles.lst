@@ -12,4 +12,5 @@ Eseguibili/Server/Worker.class
 GsonClasses/Responses/GsonResponse.class
 Eseguibili/Client/Receiver.class
 Eseguibili/Client/Printer.class
+GsonClasses/Commands/GsonLimitStopOrder.class
 Eseguibili/Main/ServerMain.class

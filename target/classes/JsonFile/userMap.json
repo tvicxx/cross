@@ -18,5 +18,9 @@
   "loren": {
     "password": "cate",
     "isLogged": false
+  },
+  "isma": {
+    "password": "dade",
+    "isLogged": false
   }
 }

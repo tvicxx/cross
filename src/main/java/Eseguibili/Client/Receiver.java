@@ -65,6 +65,16 @@ public class Receiver implements Runnable{
                     }
                     printer.prompt();
                 }
+                else if(jsonMess.get("orderId") != null){
+                    int orderId = jsonMess.get("orderId").getAsInt();
+                    if(orderId != -1){
+                        printer.print("[Client] " + Ansi.GREEN + "Order inserted successfully! Order ID: " + orderId + Ansi.RESET);
+                    }
+                    else{
+                        String error = jsonMess.get("errorMessage").getAsString();
+                        printer.print("[Client] " + Ansi.RED + error + Ansi.RESET);
+                    }
+                }
             }
         }
         catch(Exception e){

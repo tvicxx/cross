@@ -98,4 +98,8 @@ public class ServerMain{
             System.exit(0);
         }
     }
+
+    public static void loadOrderBook(){
+        
+    }
 }
