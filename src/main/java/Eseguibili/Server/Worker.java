@@ -201,7 +201,7 @@ public class Worker implements Runnable {
                         }
                     }
                     catch(Exception e){
-
+                        System.err.printf(Ansi.RED + "[--WORKER %s--] " + Ansi.RESET + "Error processing client request: %s\n", Thread.currentThread().getName(), e.getMessage());
                     }
                 }
             }

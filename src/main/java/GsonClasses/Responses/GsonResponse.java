@@ -4,7 +4,7 @@ import java.io.PrintWriter;
 
 import com.google.gson.Gson;
 
-public class GsonResponse {
+public class GsonResponse{
     public String type;
     public int response;
     public String errorMessage;

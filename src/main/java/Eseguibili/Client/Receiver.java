@@ -62,6 +62,12 @@ public class Receiver implements Runnable{
                             else printer.print("[Client] " + Ansi.RED + error + Ansi.RESET);
                             shared.isClosed.set(true);
                         break;
+
+                        case "cancelOrder":
+                            if(error.equals("OK")){
+                                printer.print("[Client] " + Ansi.GREEN + "Order cancelled successfully!" + Ansi.RESET);
+                            }
+                            else printer.print("[Client] " + Ansi.RED + error + Ansi.RESET);
                     }
                     printer.prompt();
                 }

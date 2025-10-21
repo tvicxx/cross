@@ -13,6 +13,7 @@ import Eseguibili.Client.*;
 import Varie.*;
 import GsonClasses.*;
 import GsonClasses.Commands.*;
+import GsonClasses.Responses.GsonResponseOrder;
 
 public class ClientMain{
 
@@ -169,6 +170,78 @@ public class ClientMain{
                                 }
                                 catch(NumberFormatException e){
                                     printer.print("[Client] "+ Ansi.RED + "Invalid parameters for insertLimitOrder. 'dimensione' and 'prezzoLimite' must be integers." + Ansi.RESET);
+                                    printer.prompt();
+                                    break;
+                                }
+                            break;
+
+                            case "insertMarketOrder":
+                                try{
+                                    String type = command[1].toLowerCase();
+                                    int size = Integer.parseInt(command[2]);
+                                    if(type.equals("ask)") || type.equals("bid")){
+                                        if(shared.isLogged.get()){
+                                            mesGson = new GsonMess<Values> ("insertMarketOrder", new GsonMarketOrder(type, size));
+                                            writer.println(gson.toJson(mesGson));
+                                        }
+                                        else{
+                                            printer.print("[Client] "+ Ansi.RED + "You must be logged in to insert an order." + Ansi.RESET);
+                                            printer.prompt();
+                                        }
+                                    }
+                                    else{
+                                        printer.print("[Client] "+ Ansi.RED + "Invalid order type. 'tipo' must be 'ask' or 'bid'." + Ansi.RESET);
+                                        printer.prompt();
+                                    }
+                                }
+                                catch(NumberFormatException e){
+                                    printer.print("[Client] "+ Ansi.RED + "Invalid parameters for insertMarketOrder. 'dimensione' must be an integer." + Ansi.RESET);
+                                    printer.prompt();
+                                    break;
+                                }
+                            break;
+
+                            case "insertStopOrder":
+                                try{
+                                    String type = command[1].toLowerCase();
+                                    int size = Integer.parseInt(command[2]);
+                                    int stopPrice = Integer.parseInt(command[3]);
+                                    if(type.equals("ask") || type.equals("bid")){
+                                        if(shared.isLogged.get()){
+                                            mesGson = new GsonMess<Values>("insertStopOrder", new GsonLimitStopOrder(type, size, stopPrice));
+                                            writer.println(gson.toJson(mesGson));
+                                        }
+                                        else{
+                                            printer.print("[Client] "+ Ansi.RED + "You must be logged in to insert an order." + Ansi.RESET);
+                                            printer.prompt();
+                                        }
+                                    }
+                                    else{
+                                        printer.print("[Client] "+ Ansi.RED + "Invalid order type. 'tipo' must be 'ask' or 'bid'." + Ansi.RESET);
+                                        printer.prompt();
+                                    }
+                                }
+                                catch(NumberFormatException e){
+                                    printer.print("[Client] "+ Ansi.RED + "Invalid parameters for insertStopOrder. 'dimensione' and 'stopPrice' must be integers." + Ansi.RESET);
+                                    printer.prompt();
+                                    break;
+                                }
+                            break;
+
+                            case "cancelOrder":
+                                try{
+                                    if(shared.isLogged.get()){
+                                        int orderId = Integer.parseInt(command[1]);
+                                        mesGson = new GsonMess<Values>("cancelOrder", new GsonResponseOrder(orderId));
+                                        writer.println(gson.toJson(mesGson));
+                                    }
+                                    else{
+                                        printer.print("[Client] "+ Ansi.RED + "You must be logged in to cancel an order." + Ansi.RESET);
+                                        printer.prompt();
+                                    }
+                                }
+                                catch(NumberFormatException e){
+                                    printer.print("[Client] "+ Ansi.RED + "Invalid parameter for cancelOrder. 'orderId' must be an integer." + Ansi.RESET);
                                     printer.prompt();
                                     break;
                                 }
