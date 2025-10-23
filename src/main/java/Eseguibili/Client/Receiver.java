@@ -68,6 +68,7 @@ public class Receiver implements Runnable{
                                 printer.print("[Client] " + Ansi.GREEN + "Order cancelled successfully!" + Ansi.RESET);
                             }
                             else printer.print("[Client] " + Ansi.RED + error + Ansi.RESET);
+                        break;
                     }
                     printer.prompt();
                 }
@@ -77,8 +78,7 @@ public class Receiver implements Runnable{
                         printer.print("[Client] " + Ansi.GREEN + "Order inserted successfully! Order ID: " + orderId + Ansi.RESET);
                     }
                     else{
-                        String error = jsonMess.get("errorMessage").getAsString();
-                        printer.print("[Client] " + Ansi.RED + error + Ansi.RESET);
+                        printer.print("[Client] " + Ansi.RED + "Errore nell'ordine" + Ansi.RESET);
                     }
                 }
             }

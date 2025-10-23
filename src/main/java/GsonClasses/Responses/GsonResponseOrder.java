@@ -1,19 +1,18 @@
 package GsonClasses.Responses;
 
-import GsonClasses.Values;
+import java.io.PrintWriter;
 
-public class GsonResponseOrder extends Values{
+import com.google.gson.Gson;
+
+public class GsonResponseOrder{
     public int orderId;
 
-    public GsonResponseOrder(int orderId){
-        this.orderId = orderId;
+    public void setResponseOrder(String orderId){
+        this.orderId = Integer.parseInt(orderId);
     }
 
-    public int getOrderId(){
-        return this.orderId;
-    }
-
-    public String toString(){
-        return "Order ID: " + this.orderId;
+    public void sendMessage(Gson gson,PrintWriter writer){
+        String respMessage = gson.toJson(this);
+        writer.println(respMessage);
     }
 }

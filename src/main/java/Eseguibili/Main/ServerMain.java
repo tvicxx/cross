@@ -11,6 +11,7 @@ import com.google.gson.reflect.TypeToken;
 import com.google.gson.stream.JsonReader;
 
 import Eseguibili.Server.*;
+import OrderBook.*;
 import Varie.*;
 
 
@@ -27,6 +28,12 @@ public class ServerMain{
     public static ConcurrentLinkedQueue <Worker> workerList = new ConcurrentLinkedQueue<>();
 
     public static final ExecutorService threadPool = Executors.newCachedThreadPool();
+
+    //strutture dati per orderBook
+    public static ConcurrentSkipListMap<Integer,OrderValue> askMap = new ConcurrentSkipListMap<>();
+    public static ConcurrentLinkedQueue<StopValue> stopQueue;
+    public static ConcurrentSkipListMap<Integer,OrderValue> bidMap = new ConcurrentSkipListMap<>(Collections.reverseOrder());
+    public static OrderBook orderBook = new OrderBook(askMap, 0, new ConcurrentLinkedQueue<>(), bidMap);
 
     public static void loadConfig() throws FileNotFoundException, IOException{
         InputStream input = new FileInputStream(configFile);
@@ -56,11 +63,13 @@ public class ServerMain{
 
             loadUserMap();
 
+            loadOrderBook();
+
             //accept e asegna al thread pool
             while (true){
                 Socket receivedSocket = serverSocket.accept();
                 //System.out.println(Ansi.GREEN + "[--ServerMain--] New client connected: " + receivedSocket.getInetAddress().getHostAddress()+ Ansi.RESET);
-                Worker worker = new Worker(receivedSocket, userMap);
+                Worker worker = new Worker(receivedSocket, userMap, orderBook);
                 workerList.add(worker);
                 threadPool.execute(worker);
             }
@@ -100,6 +109,54 @@ public class ServerMain{
     }
 
     public static void loadOrderBook(){
-        
+        try(JsonReader reader = new JsonReader(new FileReader("src/main/java/JsonFile/orderBookCopy.json"))){
+            Gson gson = new Gson();
+            reader.beginObject();
+            while(reader.hasNext()){
+                String name = reader.nextName();
+
+                System.out.println("[--ServerMain--] Loading " + name + "...");
+
+                if(name.equals("askMap")){
+                    reader.beginObject();
+                    ConcurrentSkipListMap<Integer, OrderValue> askMap = orderBook.askMap;
+
+                    while(reader.hasNext()){
+                        int price = Integer.parseInt(reader.nextName());
+                        OrderValue val = gson.fromJson(reader, OrderValue.class);
+                        askMap.put(price, val);
+                    }
+                    reader.endObject();
+                }
+                else if(name.equals("spread")){
+                    orderBook.spread = reader.nextInt();
+                    System.out.println("[--ServerMain--] spread loaded: " + orderBook.spread);
+                }
+                else if(name.equals("bidMap")){
+                    reader.beginObject();
+                    ConcurrentSkipListMap<Integer, OrderValue> bidMap = orderBook.bidMap;
+                    System.out.println("[--ServerMain--] Reading bidMap...");
+
+                    while(reader.hasNext()){
+                        int price = Integer.parseInt(reader.nextName());
+                        OrderValue val = gson.fromJson(reader, OrderValue.class);
+                        bidMap.put(price, val);
+                    }
+                    System.out.println("[--ServerMain--] bidMap loaded: " + bidMap.toString());
+                    reader.endObject();
+                }
+            }
+            reader.endObject();
+            System.out.println("[--ServerMain--] OrderBook loaded successfully!");
+            orderBook.stopQueue = new ConcurrentLinkedQueue<>();
+        }
+        catch(EOFException e){
+            System.out.println("[--ServerMain--] File orderBook vuoto");
+            return;
+        }
+        catch(Exception e){
+            System.out.println("[--ServerMain--] Error while loading OrderBook: " + e.getMessage());
+            System.exit(0);
+        }
     }
 }

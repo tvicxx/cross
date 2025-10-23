@@ -5,6 +5,7 @@ import java.net.*;
 import java.util.*;
 //import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+
 import com.google.gson.Gson;
 
 //import org.ietf.jgss.GSSException;
@@ -13,7 +14,6 @@ import Eseguibili.Client.*;
 import Varie.*;
 import GsonClasses.*;
 import GsonClasses.Commands.*;
-import GsonClasses.Responses.GsonResponseOrder;
 
 public class ClientMain{
 
@@ -55,10 +55,13 @@ public class ClientMain{
     public static String hostname;          // Nome host del server
     public static int TCPport;
 
+    private static boolean udp = false;
+
     private static Socket SocketTCP;
     private static BufferedReader reader;
     private static PrintWriter writer;
     private static Thread receiverTCP;
+    private static Thread receiverUDP;
     private static Scanner scannerInput = new Scanner(System.in);
     private static Gson gson = new Gson();
     private static GsonMess<Values> mesGson;
@@ -75,12 +78,12 @@ public class ClientMain{
 
         SharedData shared = new SharedData();
 
+        //Thread che si occupa di stampare sulla CLI
+        Printer printer = new Printer();
+
         try{
             System.out.println("[Client] Loading configuration...");
             loadConfig();
-
-            //Thread che si occupa di stampare sulla CLI
-            Printer printer = new Printer();
 
             try(DatagramSocket SocketUDP  = new DatagramSocket()){
                 SocketTCP = new Socket(hostname, TCPport);
@@ -134,6 +137,26 @@ public class ClientMain{
                                 mesGson = new GsonMess<Values>("login", new GsonUser(command[1], command[2]));
                                 writer.println(gson.toJson(mesGson));
 
+                                while(udp == false){
+                                    if(shared.isLogged.get()){
+                                        try{
+                                            InetAddress serverAddress = InetAddress.getByName(hostname);
+                                            DatagramPacket sendPacket = new DatagramPacket(new byte[1], 1, serverAddress, shared.UDPport);
+                                            SocketUDP.send(sendPacket);
+
+                                            receiverUDP = new Thread(new ReceiverUDP(SocketUDP, reader, printer));
+                                            receiverUDP.start();
+                                        }
+                                        catch(IOException e){
+                                            printer.print("[Client] " + Ansi.RED + "Error starting UDP receiver: " + e.getMessage() + Ansi.RESET);
+                                            printer.prompt();
+
+                                        }
+                                        udp = true;
+                                    }
+                                    if(shared.loginError.get() == true) break;
+                                }
+
                             break;
 
                             case "logout":
@@ -148,7 +171,7 @@ public class ClientMain{
                                 }
                             break;
 
-                            case "insertlimitOrder":
+                            case "insertLimitOrder":
                                 try{
                                     String type = command[1].toLowerCase();
                                     int size = Integer.parseInt(command[2]);
@@ -157,6 +180,7 @@ public class ClientMain{
                                         if(shared.isLogged.get()){
                                             mesGson = new GsonMess<Values>("insertLimitOrder", new GsonLimitStopOrder(type, size, limitPrice));
                                             writer.println(gson.toJson(mesGson));
+                                            System.out.println(gson.toJson(mesGson));
                                         }
                                         else{
                                             printer.print("[Client] "+ Ansi.RED + "You must be logged in to insert an order." + Ansi.RESET);
@@ -232,7 +256,7 @@ public class ClientMain{
                                 try{
                                     if(shared.isLogged.get()){
                                         int orderId = Integer.parseInt(command[1]);
-                                        mesGson = new GsonMess<Values>("cancelOrder", new GsonResponseOrder(orderId));
+                                        mesGson = new GsonMess<Values>("cancelOrder", new GsonCancelOrder(orderId));
                                         writer.println(gson.toJson(mesGson));
                                     }
                                     else{
@@ -245,6 +269,12 @@ public class ClientMain{
                                     printer.prompt();
                                     break;
                                 }
+                            break;
+
+                            default:
+                                printer.print(Ansi.RED + "[Client] Invalid command. Type 'help()' to see the list of available commands." + Ansi.RESET);
+                                printer.prompt();
+                            break;
                         }
                     }
                     else{
@@ -256,11 +286,11 @@ public class ClientMain{
 
         }
         catch(IOException e){
-            System.err.println(Ansi.RED + "[Client] Error connecting to server" + Ansi.RESET);
+            printer.print(Ansi.RED + "[Client] Error connecting to server" + Ansi.RESET);
             e.printStackTrace();
         }
         catch(Exception e){
-            System.err.println(Ansi.RED + "[Client] Error loading configuration file: " + e.getMessage() + Ansi.RESET);
+            printer.print(Ansi.RED + "[Client] Error loading configuration file: " + e.getMessage() + Ansi.RESET);
             System.exit(0);
         }
     }

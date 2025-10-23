@@ -9,7 +9,7 @@
   },
   "pippo": {
     "password": "pluto",
-    "isLogged": true
+    "isLogged": false
   },
   "tommaso": {
     "password": "psw",

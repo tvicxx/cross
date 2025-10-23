@@ -6,14 +6,15 @@ import java.net.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
-//import GsonClasses.*;
 import GsonClasses.Commands.*;
 import GsonClasses.Responses.*;
+import OrderBook.*;
 import Eseguibili.Main.ServerMain;
 import Varie.*;
 
@@ -21,6 +22,8 @@ public class Worker implements Runnable {
 
     private Socket receivedSocket;
     public ConcurrentHashMap <String, Tupla> userMap;
+    public OrderBook orderBook;
+    public TimeoutHandler timeout;
 
     public int UDPport;
 
@@ -30,6 +33,9 @@ public class Worker implements Runnable {
 
     private static Gson gson = new Gson();
     public GsonResponse response = new GsonResponse();
+    public GsonResponseOrder responseOrder = new GsonResponseOrder();
+
+    public static AtomicBoolean running = new AtomicBoolean(true); //Usata per interrompere l'esecuzione del Worker
 
 
     public class SharedState{
@@ -38,9 +44,10 @@ public class Worker implements Runnable {
         public volatile long lastActivity = System.currentTimeMillis();
     }
     
-    public Worker(Socket receivedSocket, ConcurrentHashMap <String, Tupla> userMap){
+    public Worker(Socket receivedSocket, ConcurrentHashMap <String, Tupla> userMap, OrderBook orderBook){
         this.receivedSocket = receivedSocket;
         this.userMap = userMap;
+        this.orderBook = orderBook;
     }
 
     @Override
@@ -54,7 +61,7 @@ public class Worker implements Runnable {
 
             try(BufferedReader reader = new BufferedReader(new InputStreamReader(receivedSocket.getInputStream())); PrintWriter writer = new PrintWriter(receivedSocket.getOutputStream(), true)){
 
-                while(state.activeUser.get()){
+                while(state.activeUser.get() && running.get()){
                     try{
                         String message = reader.readLine();
 
@@ -198,12 +205,69 @@ public class Worker implements Runnable {
                                     return;
                                 }
                             break;
+
+                            case "insertLimitOrder":
+                                try{
+                                    objValues = obj.getAsJsonObject("values");
+                                    GsonLimitStopOrder valuesLimit = new Gson().fromJson(objValues, GsonLimitStopOrder.class);
+
+                                    String type = valuesLimit.getType();
+                                    int size = valuesLimit.getSize();
+                                    int price = valuesLimit.getPrice();
+                                    int orderId = -1;
+
+                                    if(type.equals("ask")){
+                                        //inserimento ordine di vendita
+                                        orderId = orderBook.askOrder(size, price, onlineUser);
+                                    }
+                                    else if(type.equals("bid")){
+                                        //inserimento ordine di acquisto
+                                        orderId = orderBook.bidOrder(size, price, onlineUser);
+                                    }
+                                    else{
+                                        responseOrder.setResponseOrder("-1");
+                                        responseOrder.sendMessage(gson, writer);
+                                        break;
+                                    }
+
+                                    //aggiornamento orderBook.json
+
+                                    responseOrder.setResponseOrder(String.valueOf(orderId));
+                                    responseOrder.sendMessage(gson, writer);
+                                }
+                                catch(Exception e){
+                                    System.out.printf(Ansi.RED + "[--WORKER %s--] " + Ansi.RESET + "Error in limitOrder: %s\n", Thread.currentThread().getName(), e.getMessage());
+                                    responseOrder.setResponseOrder("-1");
+                                    responseOrder.sendMessage(gson, writer);
+                                }
+                            break;
+
+                            case "insertMarketOrder":
+                                
+                            break;
+
+                            case "insertStopOrder":
+
+                            break;
+
+                            case "cancelOrder":
+                                response.setResponse("cancelOrder", 100, "OK");
+                                response.sendMessage(gson, writer);
+                            break;
+
+                            default:
+                                System.out.printf(Ansi.RED + "[--WORKER %s--] " + Ansi.RESET + "Error, command received not found\n", Thread.currentThread().getName());
                         }
                     }
-                    catch(Exception e){
-                        System.err.printf(Ansi.RED + "[--WORKER %s--] " + Ansi.RESET + "Error processing client request: %s\n", Thread.currentThread().getName(), e.getMessage());
+                    catch(SocketTimeoutException e){
+                        if(state.activeUser.get() == false){
+                            System.out.printf(Ansi.BLUE + "[--WORKER %s--] " + Ansi.RESET + "Client inactive, closing connection\n", Thread.currentThread().getName());
+                            break;
+                        }
+                        else continue;
                     }
                 }
+                //chiusura connessione e terminazione worker
             }
         }
         catch(IOException e){
@@ -224,6 +288,16 @@ public class Worker implements Runnable {
 
         } catch (Exception e){
             System.err.printf("[WORKER] updateJsonUsermap %s \n",e.getMessage());
+        }
+    }
+
+    public static void updateOrderBook(OrderBook orderBook){
+        try(BufferedWriter writer = new BufferedWriter(new FileWriter("src/main/java/JsonFile/orderBook.json"))){
+            Gson g = new GsonBuilder().setPrettyPrinting().create();
+            writer.write(g.toJson(orderBook));
+
+        } catch (Exception e){
+            System.err.printf("[WORKER] updateJsonOrderBook %s \n",e.getMessage());
         }
     }
 }
