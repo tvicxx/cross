@@ -1,0 +1,31 @@
+{
+  "bidMap": {
+    "12": {
+      "size": 23,
+      "total": 276,
+      "userList": [
+        {
+          "size": 23,
+          "orderId": 2,
+          "user": "pippo",
+          "date": "2025/10/28 12:13"
+        }
+      ]
+    }
+  },
+  "askMap": {
+    "2": {
+      "size": 1,
+      "total": 2,
+      "userList": [
+        {
+          "size": 1,
+          "orderId": 1,
+          "user": "tommaso",
+          "date": "2025/10/28 12:08"
+        }
+      ]
+    }
+  },
+  "spread": 1
+}

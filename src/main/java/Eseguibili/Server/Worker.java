@@ -65,6 +65,8 @@ public class Worker implements Runnable {
                     try{
                         String message = reader.readLine();
 
+                        System.out.printf(Ansi.BLUE + "[--WORKER %s--] " + Ansi.RESET + "Received message: %s\n", Thread.currentThread().getName(), message);
+
                         JsonObject obj = JsonParser.parseString(message).getAsJsonObject();
                         String operation = obj.get("operation").getAsString();
                         JsonObject objValues;
@@ -92,11 +94,11 @@ public class Worker implements Runnable {
                                     //modifica il file usermap.json inserendo il nuovo utente
                                     updateUserMap(userMap);
 
-                                    response.setResponse("register", 100, "OK");
+                                    response.setResponse("register",100, "OK");
                                     response.sendMessage(gson,writer);
                                 }
                                 else{
-                                    response.setResponse("register", 102, "username not available");
+                                    response.setResponse("register",102, "username not available");
                                     response.sendMessage(gson,writer);
                                 }
                             break;
@@ -108,20 +110,16 @@ public class Worker implements Runnable {
                                 password = valuesL.getPassword();
 
                                 try{
-                                    if(userMap.containsKey(username) == false){
-                                        response.setResponse("login", 101, "username/password mismatch or non existent username");
-                                        response.sendMessage(gson,writer);
-                                    }
-                                    else if(((userMap.get(username)).getPassword().equals(password)) == false){
-                                        response.setResponse("login", 101, "username/password mismatch or non existent username");
+                                    if(userMap.containsKey(username) == false || ((userMap.get(username)).getPassword().equals(password)) == false){
+                                        response.setResponse("login",101, "username/password mismatch or non existent username");
                                         response.sendMessage(gson,writer);
                                     }
                                     else if((userMap.get(username)).getIsLogged()){
-                                        response.setResponse("login", 102, "user already logged");
+                                        response.setResponse("login",102, "user already logged");
                                         response.sendMessage(gson,writer);
                                     }
                                     else if(onlineUser != null){
-                                        response.setResponse("login", 103, "other error cases");
+                                        response.setResponse("login",103, "other error cases");
                                         response.sendMessage(gson, writer);
                                     }
                                     else{
@@ -135,7 +133,7 @@ public class Worker implements Runnable {
                                     }
                                 }
                                 catch(Exception e){
-                                    response.setResponse("login", 103, e.getMessage());
+                                    response.setResponse("login",103, e.getMessage());
                                     response.sendMessage(gson,writer);
                                 }
                             break;
@@ -152,39 +150,39 @@ public class Worker implements Runnable {
 
                                 try{
                                     if(onlineUser != null){
-                                        response.setResponse("updateCredentials", 104, "user currently logged in");
+                                        response.setResponse("updateCredentials",104, "user currently logged in");
                                         response.sendMessage(gson,writer);
                                     }
                                     else if(userMap.containsKey(username) == false || (userMap.get(username)).getPassword().equals(old_password) == false){
-                                        response.setResponse("updateCredentials", 102, "username/old_password mismatch or non existent username");
+                                        response.setResponse("updateCredentials",102, "username/old_password mismatch or non existent username");
                                         response.sendMessage(gson,writer);
                                     }
                                     else if(old_password.equals(new_password) == true){
-                                            response.setResponse("updateCredentials", 103, "new password equals to old one");
+                                            response.setResponse("updateCredentials",103, "new password equals to old one");
                                             response.sendMessage(gson,writer);
                                     }
                                     else if(validateString(new_password) == false){
-                                        response.setResponse("updateCredentials", 101, "invalid new password");
+                                        response.setResponse("updateCredentials",101, "invalid new password");
                                         response.sendMessage(gson,writer);
                                     }
                                     else{
                                         userMap.replace(username, new Tupla(new_password, false));
                                         updateUserMap(userMap);
                                         
-                                        response.setResponse("updateCredentials", 100, "OK");
+                                        response.setResponse("updateCredentials",100, "OK");
                                         response.sendMessage(gson,writer);
                                     }
                                     
                                 }
                                 catch (Exception e){
-                                    response.setResponse("updateCredentials", 105, "other error cases");
+                                    response.setResponse("updateCredentials",105, "other error cases");
                                     response.sendMessage(gson,writer);
                                 }
                             break;
 
                             case "logout":
                                 if(onlineUser == null){
-                                    response.setResponse("logout", 101, "user not logged in or other error cases");
+                                    response.setResponse("updateCredentials",101, "user not logged in or other error cases");
                                     response.sendMessage(gson,writer);
                                 }
                                 else{
@@ -195,7 +193,7 @@ public class Worker implements Runnable {
                                     
                                     onlineUser = null;
 
-                                    response.setResponse("logout", 100, "OK");
+                                    response.setResponse("updateCredentials",100, "OK");
                                     response.sendMessage(gson,writer);
                                     state.activeUser.set(false);
 
@@ -215,6 +213,12 @@ public class Worker implements Runnable {
                                     int size = valuesLimit.getSize();
                                     int price = valuesLimit.getPrice();
                                     int orderId = -1;
+
+                                    if(size <= 0 || price <= 0){
+                                        responseOrder.setResponseOrder("-1");
+                                        responseOrder.sendMessage(gson, writer);
+                                        break;
+                                    }
 
                                     if(type.equals("ask")){
                                         //inserimento ordine di vendita
@@ -251,8 +255,22 @@ public class Worker implements Runnable {
                             break;
 
                             case "cancelOrder":
-                                response.setResponse("cancelOrder", 100, "OK");
-                                response.sendMessage(gson, writer);
+                                try{
+                                    objValues = obj.getAsJsonObject("values");
+                                    GsonCancelOrder valuesO = new Gson().fromJson(objValues, GsonCancelOrder.class);
+                                    int res = orderBook.cancelOrder(valuesO.getOrderId(), onlineUser);
+                                    if(res == 100){
+                                        response.setResponse("cancelOrder", res, "OK");
+                                        response.sendMessage(gson, writer);
+                                    }
+                                    else{
+                                        response.setResponse("cancelOrder", res, "order does not exist or belongs to different user or has already been finalized or other cases");
+                                        response.sendMessage(gson, writer);
+                                    }
+                                }
+                                catch(Exception e){
+                                    System.out.printf(Ansi.RED + "[--WORKER %s--] " + Ansi.RESET + "Error in cancelOrder\n", Thread.currentThread().getName());
+                                }
                             break;
 
                             default:

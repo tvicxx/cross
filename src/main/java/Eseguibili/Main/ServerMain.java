@@ -23,6 +23,9 @@ public class ServerMain{
     public static int UDPport;
     public static int maxDelay;
     public static String hostname;
+    public static String userMapPath;
+    public static String orderBookPath;
+
 
     public static ConcurrentHashMap <String, Tupla> userMap = new ConcurrentHashMap<>();
     public static ConcurrentLinkedQueue <Worker> workerList = new ConcurrentLinkedQueue<>();
@@ -43,6 +46,8 @@ public class ServerMain{
         UDPport = Integer.parseInt(properties.getProperty("UDPport"));
         maxDelay = Integer.parseInt(properties.getProperty("maxDelay"));
         hostname = properties.getProperty("hostname");
+        userMapPath = properties.getProperty("userMapPath");
+        orderBookPath = properties.getProperty("orderBookPath");
         input.close();
     }
     
@@ -59,11 +64,12 @@ public class ServerMain{
 
         try{
             serverSocket = new ServerSocket(TCPport);
-            System.out.println(Ansi.YELLOW + "[--ServerMain--] Server is starting on port " + TCPport + "..." + Ansi.RESET);
 
             loadUserMap();
 
             loadOrderBook();
+
+            System.out.println(Ansi.YELLOW + "[--ServerMain--] Server is starting on port " + TCPport + "..." + Ansi.RESET);
 
             //accept e asegna al thread pool
             while (true){
@@ -81,7 +87,7 @@ public class ServerMain{
     }
 
     public static void loadUserMap() {
-        try(JsonReader reader = new JsonReader(new FileReader("src/main/java/JsonFile/userMap.json"))){
+        try(JsonReader reader = new JsonReader(new FileReader(userMapPath))){
 
             //lettura dal file JSON userMap.json
             Gson gson = new Gson();
@@ -96,7 +102,8 @@ public class ServerMain{
 
                 System.out.println("Username: " + username + ", Password: " + password + ", isLogged: " + isLogged);
             }
-                */
+            */
+            System.out.println("[--ServerMain--] UserMap loaded successfully!");
         }
         catch(EOFException e){
             System.out.println("File utenti vuoto");
@@ -109,13 +116,13 @@ public class ServerMain{
     }
 
     public static void loadOrderBook(){
-        try(JsonReader reader = new JsonReader(new FileReader("src/main/java/JsonFile/orderBookCopy.json"))){
+        try(JsonReader reader = new JsonReader(new FileReader(orderBookPath))){
             Gson gson = new Gson();
             reader.beginObject();
             while(reader.hasNext()){
                 String name = reader.nextName();
 
-                System.out.println("[--ServerMain--] Loading " + name + "...");
+                //System.out.println("[--ServerMain--] Loading " + name + "...");
 
                 if(name.equals("askMap")){
                     reader.beginObject();
@@ -130,19 +137,19 @@ public class ServerMain{
                 }
                 else if(name.equals("spread")){
                     orderBook.spread = reader.nextInt();
-                    System.out.println("[--ServerMain--] spread loaded: " + orderBook.spread);
+                    //System.out.println("[--ServerMain--] spread loaded: " + orderBook.spread);
                 }
                 else if(name.equals("bidMap")){
                     reader.beginObject();
                     ConcurrentSkipListMap<Integer, OrderValue> bidMap = orderBook.bidMap;
-                    System.out.println("[--ServerMain--] Reading bidMap...");
+                    //System.out.println("[--ServerMain--] Reading bidMap...");
 
                     while(reader.hasNext()){
                         int price = Integer.parseInt(reader.nextName());
                         OrderValue val = gson.fromJson(reader, OrderValue.class);
                         bidMap.put(price, val);
                     }
-                    System.out.println("[--ServerMain--] bidMap loaded: " + bidMap.toString());
+                    //System.out.println("[--ServerMain--] bidMap loaded: " + bidMap.toString());
                     reader.endObject();
                 }
             }

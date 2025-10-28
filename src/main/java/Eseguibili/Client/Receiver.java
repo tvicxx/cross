@@ -28,47 +28,19 @@ public class Receiver implements Runnable{
             String message;
             while(Thread.currentThread().isInterrupted() == false && socketTCP.isClosed() == false && (message = reader.readLine()) != null){
                 JsonObject jsonMess = JsonParser.parseString(message).getAsJsonObject();
-                if(jsonMess.get("type") != null){
-                    String type = jsonMess.get("type").getAsString();
-                    String error = jsonMess.get("errorMessage").getAsString();
-                    switch(type){
-                        case "register":
-                            if(error.equals("OK")){
-                                printer.print("[Client] " + Ansi.GREEN + "Registration successful!" + Ansi.RESET);
-                            }
-                            else printer.print("[Client] " + Ansi.RED + error + Ansi.RESET);
-                        break;
-                        case "updateCredentials":
-                            if(error.equals("OK")){
-                                printer.print("[Client] " + Ansi.GREEN + "Credentials updated successfully!" + Ansi.RESET);
-                            }
-                            else printer.print("[Client] " + Ansi.RED + error + Ansi.RESET);
-                        break;
-                        case "login":
-                            if(error.equals("OK")){
-                                shared.isLogged.set(true);
-                                shared.loginError.set(false);
-                                printer.print("[Client] " + Ansi.GREEN + "Login successful!" + Ansi.RESET);
-                            }
-                            else {
-                                shared.loginError.set(true);
-                                printer.print("[Client] " + Ansi.RED + error + Ansi.RESET);
-                            }
-                        break;
-                        case "logout":
-                            if(error.equals("OK")){
-                                printer.print("[Client] " + Ansi.YELLOW + "Logout successful!" + Ansi.RESET);
-                            }
-                            else printer.print("[Client] " + Ansi.RED + error + Ansi.RESET);
+                if(jsonMess.get("response") != null){
+                    if(jsonMess.get("response").getAsInt() == 100){
+                        printer.print("[Client] " + Ansi.GREEN + "Operation successful!" + Ansi.RESET);
+                        if(jsonMess.get("type").getAsString().equals("login")){
+                            shared.isLogged.set(true);
+                            shared.loginError.set(false);
+                        }
+                        else if(jsonMess.get("type").getAsString().equals("logout")){
                             shared.isClosed.set(true);
-                        break;
-
-                        case "cancelOrder":
-                            if(error.equals("OK")){
-                                printer.print("[Client] " + Ansi.GREEN + "Order cancelled successfully!" + Ansi.RESET);
-                            }
-                            else printer.print("[Client] " + Ansi.RED + error + Ansi.RESET);
-                        break;
+                        }
+                    }
+                    else{
+                        printer.print("[Client] " + Ansi.RED + jsonMess.get("errorMessage").getAsString() + Ansi.RESET);
                     }
                     printer.prompt();
                 }
@@ -80,6 +52,7 @@ public class Receiver implements Runnable{
                     else{
                         printer.print("[Client] " + Ansi.RED + "Errore nell'ordine" + Ansi.RESET);
                     }
+                    printer.prompt();
                 }
             }
         }

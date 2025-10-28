@@ -3,6 +3,14 @@
     "password": "zanca",
     "isLogged": false
   },
+  "laila": {
+    "password": "vince",
+    "isLogged": false
+  },
+  "pinco": {
+    "password": "pallo",
+    "isLogged": false
+  },
   "erne": {
     "password": "fefe",
     "isLogged": false
