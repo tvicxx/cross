@@ -203,7 +203,7 @@ public class ClientMain{
                                 try{
                                     String type = command[1].toLowerCase();
                                     int size = Integer.parseInt(command[2]);
-                                    if(type.equals("ask)") || type.equals("bid")){
+                                    if(type.equals("ask") || type.equals("bid")){
                                         if(shared.isLogged.get()){
                                             mesGson = new GsonMess<Values> ("insertMarketOrder", new GsonMarketOrder(type, size));
                                             writer.println(gson.toJson(mesGson));

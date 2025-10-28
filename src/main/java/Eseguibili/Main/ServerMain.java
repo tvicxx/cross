@@ -36,7 +36,7 @@ public class ServerMain{
     public static ConcurrentSkipListMap<Integer,OrderValue> askMap = new ConcurrentSkipListMap<>();
     public static ConcurrentLinkedQueue<StopValue> stopQueue;
     public static ConcurrentSkipListMap<Integer,OrderValue> bidMap = new ConcurrentSkipListMap<>(Collections.reverseOrder());
-    public static OrderBook orderBook = new OrderBook(askMap, 0, new ConcurrentLinkedQueue<>(), bidMap);
+    public static OrderBook orderBook = new OrderBook(askMap, 0, new ConcurrentLinkedQueue<>(), bidMap, 0);
 
     public static void loadConfig() throws FileNotFoundException, IOException{
         InputStream input = new FileInputStream(configFile);
@@ -151,6 +151,10 @@ public class ServerMain{
                     }
                     //System.out.println("[--ServerMain--] bidMap loaded: " + bidMap.toString());
                     reader.endObject();
+                }
+                else if(name.equals("lastId")){
+                    orderBook.lastId = reader.nextInt();
+                    //System.out.println("[--ServerMain--] lastId loaded: " + orderBook.lastId);
                 }
             }
             reader.endObject();

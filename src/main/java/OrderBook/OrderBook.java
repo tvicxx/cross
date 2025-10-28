@@ -19,15 +19,17 @@ public class OrderBook {
     public int spread;
     public ConcurrentLinkedQueue<StopValue> stopQueue;
     public ConcurrentSkipListMap<Integer,OrderValue> bidMap;
+    public int lastId;
 
     public static final String configFile = "src/main/java/server.properties";
     public static String orderBookPath;
 
-    public OrderBook(ConcurrentSkipListMap<Integer,OrderValue> askMap, int spread, ConcurrentLinkedQueue<StopValue> stopQueue, ConcurrentSkipListMap<Integer,OrderValue> bidMap){
+    public OrderBook(ConcurrentSkipListMap<Integer,OrderValue> askMap, int spread, ConcurrentLinkedQueue<StopValue> stopQueue, ConcurrentSkipListMap<Integer,OrderValue> bidMap, int lastId){
         this.askMap = askMap;
         this.spread = spread;
         this.stopQueue = stopQueue;
         this.bidMap = bidMap;
+        this.lastId = lastId;
 
         try{
             System.out.println("[--ServerMain--] Loading configuration...");
@@ -46,7 +48,22 @@ public class OrderBook {
         orderBookPath = properties.getProperty("orderBookPath");
         input.close();
     }
+
     public synchronized void updateOrderBook(){
+        if(askMap.isEmpty() == false && bidMap.isEmpty() == false){
+            spread = askMap.firstKey() - bidMap.firstKey();
+        }
+        else if(bidMap.isEmpty() == false){
+            spread = bidMap.firstKey();
+        }
+        else if(askMap.isEmpty() == false){
+            spread = askMap.firstKey();
+        }
+        else{
+            spread = 0;
+        }
+
+
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
         
         // Crea una mappa con tutti i dati dell'order book
@@ -55,6 +72,7 @@ public class OrderBook {
         orderBookData.put("askMap", askMap);
         orderBookData.put("spread", spread);
         orderBookData.put("bidMap", bidMap);
+        orderBookData.put("lastId", lastId);
         //orderBookData.put("stopQueue", stopQueue);
         
         // FileWriter senza parametri SOVRASCRIVE completamente il file
@@ -70,10 +88,11 @@ public class OrderBook {
 
     public synchronized int askOrder(int size, int price, String user){
         int remaining = size;
-        int orderId = (updateLastOrderID()) + 1;
+        int orderId = getLastOrderID();
         for(Map.Entry<Integer, OrderValue> entry : bidMap.entrySet()){
             if(entry.getKey() >= price){
                 //la richiesta combacia con un ordine bid esistente
+                remaining = tryMatchOrder("ask", remaining, user, "bid", entry.getValue().userList, "limit", entry.getKey(), orderId);
             }
             if(remaining == 0){
                 updateOrderBook();
@@ -83,6 +102,13 @@ public class OrderBook {
         if(remaining > 0){
             //inserisco l'ordine nella orderbook
             loadAskOrder(price, remaining, orderId, user);
+            //aggiorno lo spread
+            if(bidMap.isEmpty() == false){
+                spread = askMap.firstKey() - bidMap.firstKey();
+            }
+            else{
+                spread = askMap.firstKey();
+            }
         }
         updateOrderBook();
         return orderId;
@@ -110,10 +136,10 @@ public class OrderBook {
 
     public synchronized int bidOrder(int size, int price, String user){
         int remaining = size;
-        int orderId = (updateLastOrderID()) +1;
+        int orderId = getLastOrderID();
         for(Map.Entry<Integer, OrderValue> entry : askMap.entrySet()){
             if(entry.getKey() <= price){
-                //la richiesta combacia con un ordine ask esistente
+                remaining = tryMatchOrder("bid", remaining, user, "ask", entry.getValue().userList, "limit", entry.getKey(), orderId);
             }
             if(remaining == 0){
                 updateOrderBook();
@@ -148,29 +174,127 @@ public class OrderBook {
         }
     }
 
-    public synchronized int updateLastOrderID(){
-        //scorre tutta la orderbook per trovare l'ultimo orderId
-        int maxOrderId = 0;
-        for(Map.Entry<Integer, OrderValue> entry : askMap.entrySet()){
-            OrderValue ov = entry.getValue();
-            for(UserValue uv : ov.userList){
-                if(uv.orderId > maxOrderId){
-                    maxOrderId = uv.orderId;
+    public synchronized int tryMatchOrder(String type1, int remaining, String user1, String type2, ConcurrentLinkedQueue<UserValue> userList, String orderType, int price, int orderId){
+        //scorro la userList dell'OrderValue
+        for(UserValue uv : userList){
+            if(uv.user.equals(user1) == false){
+                if(uv.size < remaining){
+                    remaining -= uv.size;
+                    //messaggi udp a utenti coinvolti
+                    //per ora stampo sul server
+                    System.out.println("[--OrderBook--] Matched " + uv.size + " units at price " + price + " between users " + user1 + " and " + uv.user + " for order type " + type1 + "/" + type2);
+
+                    //rimuovo l'UserValue dalla userList
+                    userList.remove(uv);
+                }
+                else if(uv.size > remaining){
+                    uv.size -= remaining;
+
+                    //messaggi udp a utenti coinvolti
+                    //per ora stampo sul server
+                    System.out.println("[--OrderBook--] Matched " + remaining + " units at price " + price + " between users " + user1 + " and " + uv.user + " for order type " + type1 + "/" + type2);
+
+                    remaining = 0;
+                    break;
+                }
+                else{
+                    //messaggi udp a utenti coinvolti
+                    //per ora stampo sul server
+                    System.out.println("[--OrderBook--] Matched " + uv.size + " units at price " + price + " between users " + user1 + " and " + uv.user + " for order type " + type1 + "/" + type2);
+
+                    userList.remove(uv);
+                    remaining = 0;
+                    break;
                 }
             }
         }
-        for(Map.Entry<Integer, OrderValue> entry : bidMap.entrySet()){
+        if(userList.isEmpty()){
+            //rimuovo l'OrderValue dalla map
+            if(type2.equals("bid")){
+                bidMap.remove(price);
+            }
+            else if(type2.equals("ask")){
+                askMap.remove(price);
+            }
+        }
+        else{
+            int newSize = 0;
+            int newTotal = 0;
+            for(UserValue uv : userList){
+                newSize += uv.size;
+                newTotal += uv.size * price;
+            }
+            OrderValue newOv = new OrderValue(newSize, newTotal, userList);
+            if(type2.equals("bid")){
+                bidMap.put(price, newOv);
+            }
+            else if(type2.equals("ask")){
+                askMap.put(price, newOv);
+            }
+        }
+        return remaining;
+    }
+
+    public synchronized int mapSize(ConcurrentSkipListMap<Integer, OrderValue> map){
+        int totalSize = 0;
+        for(Map.Entry<Integer, OrderValue> entry : map.entrySet()){
+            totalSize += entry.getValue().size;
+        }
+        return totalSize;
+
+    }
+
+    public synchronized int userOrderSize(ConcurrentSkipListMap<Integer, OrderValue> map, String user){
+        int userSize = 0;
+        for(Map.Entry<Integer, OrderValue> entry : map.entrySet()){
             OrderValue ov = entry.getValue();
             for(UserValue uv : ov.userList){
-                if(uv.orderId > maxOrderId){
-                    maxOrderId = uv.orderId;
+                if(uv.user.equals(user)){
+                    userSize += uv.size;
                 }
             }
         }
+        return userSize;
+    }
 
-        //controlla anche la stopQueue
+    public synchronized int marketOrder(String type, int size, String user){
+        int remaining = size;
 
-        return maxOrderId;
+        if(type.equals("ask")){
+            if(mapSize(bidMap) - userOrderSize(bidMap, user) < size){
+                return -1;
+            }
+
+            int orderId = getLastOrderID();
+
+            for(Map.Entry<Integer, OrderValue> entry : bidMap.entrySet()){
+                remaining = tryMatchOrder(type, remaining, user, "bid", entry.getValue().userList, "market", entry.getKey(), orderId);
+                if(remaining == 0){
+                    updateOrderBook();
+                    return orderId;
+                }
+            }
+        }
+        else if(type.equals("bid")){
+            if(mapSize(askMap) - userOrderSize(askMap, user) < size){
+                return -1;
+            }
+
+            int orderId = getLastOrderID();
+            for(Map.Entry<Integer, OrderValue> entry : askMap.entrySet()){
+                remaining = tryMatchOrder(type, remaining, user, "ask", entry.getValue().userList, "market", entry.getKey(), orderId);
+                if(remaining == 0){
+                    updateOrderBook();
+                    return orderId;
+                }
+            }
+        }
+        return -1;
+    }
+
+    public synchronized int getLastOrderID(){
+        lastId += 1;
+        return lastId;
     }
 
     public synchronized int cancelOrder(int orderId, String user){

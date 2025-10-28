@@ -247,6 +247,29 @@ public class Worker implements Runnable {
                             break;
 
                             case "insertMarketOrder":
+                                try{
+                                    objValues = obj.getAsJsonObject("values");
+                                    GsonMarketOrder valuesMarket = new Gson().fromJson(objValues, GsonMarketOrder.class);
+
+                                    String type = valuesMarket.getType();
+                                    int size = valuesMarket.getSize();
+                                    int orderId = -1;
+
+                                    if(size <= 0){
+                                        responseOrder.setResponseOrder("-1");
+                                        responseOrder.sendMessage(gson, writer);
+                                        break;
+                                    }
+                                    orderId = orderBook.marketOrder(type, size, onlineUser);
+
+                                    responseOrder.setResponseOrder(String.valueOf(orderId));
+                                    responseOrder.sendMessage(gson, writer);
+                                }
+                                catch(Exception e){
+                                    System.out.printf(Ansi.RED + "[--WORKER %s--] " + Ansi.RESET + "Error in marketOrder: %s\n", Thread.currentThread().getName(), e.getMessage());
+                                    responseOrder.setResponseOrder("-1");
+                                    responseOrder.sendMessage(gson, writer);
+                                }
                                 
                             break;
 
