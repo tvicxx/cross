@@ -305,7 +305,26 @@ public class ClientMain{
     }
 
     public static boolean checkCommand(String input){
-        //implementare controllo comandi
-        return true;
+        String [] commandPatterns = {
+            "register\\s*\\(\\s*[a-zA-Z0-9]+\\s*,\\s*\\S(?:.*\\S)?\\s*\\)$",
+            "updateCredentials\\s*\\(\\s*[a-zA-Z0-9]+\\s*,\\s*\\S(?:.*\\S)?\\s*,\\s*\\S(?:.*\\S)?\\s*\\)$",
+            "login\\s*\\(\\s*[a-zA-Z0-9]+\\s*,\\s*\\S(?:.*\\S)?\\s*\\)$",
+            "logout\\s*\\(\\s*\\)$",
+            "insertMarketOrder\\s*\\(\\s*[a-zA-Z]+\\s*,\\s*\\d+\\s*\\)$",
+            "insertLimitOrder\\s*\\(\\s*[a-zA-Z]+\\s*,\\s*\\d+\\s*,\\s*\\d+(\\.\\d+)?\\s*\\)$",
+            "insertStopOrder\\s*\\(\\s*[a-zA-Z]+\\s*,\\s*\\d+\\s*,\\s*\\d+(\\.\\d+)?\\s*\\)$",
+            "cancelOrder\\s*\\(\\s*\\d+\\s*\\)$",
+            "getPriceHistory\\s*\\(\\s*\\d+\\s*\\)$",
+            "showOrderBook\\s*\\(\\s*\\)$",
+            "showStopOrders\\s*\\(\\s*\\)$",
+            "^help\\(\\)$"
+        };
+        
+        for(String pattern : commandPatterns){
+            if(input.matches(pattern)){
+                return true;
+            }
+        }
+        return false;
     }
 }
