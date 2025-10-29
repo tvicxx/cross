@@ -26,6 +26,8 @@ public class Worker implements Runnable {
     public TimeoutHandler timeout;
 
     public int UDPport;
+    public int clientPort;
+    public InetAddress clientAddress;
 
     private String username = null;
     private String password = null;
@@ -44,10 +46,11 @@ public class Worker implements Runnable {
         public volatile long lastActivity = System.currentTimeMillis();
     }
     
-    public Worker(Socket receivedSocket, ConcurrentHashMap <String, Tupla> userMap, OrderBook orderBook){
+    public Worker(Socket receivedSocket, ConcurrentHashMap <String, Tupla> userMap, OrderBook orderBook, int UDPport){
         this.receivedSocket = receivedSocket;
         this.userMap = userMap;
         this.orderBook = orderBook;
+        this.UDPport = UDPport;
     }
 
     @Override
@@ -60,6 +63,9 @@ public class Worker implements Runnable {
             receivedSocket.setSoTimeout(5000);
 
             try(BufferedReader reader = new BufferedReader(new InputStreamReader(receivedSocket.getInputStream())); PrintWriter writer = new PrintWriter(receivedSocket.getOutputStream(), true)){
+
+                response.setResponse("UDPport", UDPport, "OK");
+                response.sendMessage(gson, writer);
 
                 while(state.activeUser.get() && running.get()){
                     try{
@@ -129,6 +135,15 @@ public class Worker implements Runnable {
 
                                         response.setResponse("login",100,"OK");
                                         response.sendMessage(gson,writer);
+
+                                        byte buf[] = new byte[1];
+                                        DatagramPacket packet = new DatagramPacket(buf, buf.length);
+                                        UDPsocket.receive(packet); //ricezione del pacchetto di conferma dal client
+                                        //System.out.println("[--WORKER " + Thread.currentThread().getName() + "--] Received UDP packet from client");
+
+                                        clientPort = packet.getPort();
+                                        clientAddress = packet.getAddress();
+
                                         System.out.printf(Ansi.GREEN + "[--WORKER %s--] " + Ansi.RESET + "User %s logged in\n", Thread.currentThread().getName(), onlineUser);
                                     }
                                 }
@@ -214,7 +229,7 @@ public class Worker implements Runnable {
                                     int price = valuesLimit.getPrice();
                                     int orderId = -1;
 
-                                    if(size <= 0 || price <= 0){
+                                    if(size <= 0 || price <= 0 || size > (2^31) -1 || price > (2^31) -1){
                                         responseOrder.setResponseOrder("-1");
                                         responseOrder.sendMessage(gson, writer);
                                         break;
@@ -255,7 +270,7 @@ public class Worker implements Runnable {
                                     int size = valuesMarket.getSize();
                                     int orderId = -1;
 
-                                    if(size <= 0){
+                                    if(size <= 0 || size > (2^31) -1){
                                         responseOrder.setResponseOrder("-1");
                                         responseOrder.sendMessage(gson, writer);
                                         break;

@@ -15,6 +15,7 @@
 /Users/tvicxx/Documents/SCUOLAZOO/Lab3/cross/src/main/java/GsonClasses/Commands/GsonCancelOrder.java
 /Users/tvicxx/Documents/SCUOLAZOO/Lab3/cross/src/main/java/GsonClasses/Commands/GsonTrade.java
 /Users/tvicxx/Documents/SCUOLAZOO/Lab3/cross/src/main/java/GsonClasses/Responses/GsonResponseOrder.java
+/Users/tvicxx/Documents/SCUOLAZOO/Lab3/cross/src/main/java/OrderBook/TradeNotifyUDP.java
 /Users/tvicxx/Documents/SCUOLAZOO/Lab3/cross/src/main/java/Eseguibili/Server/Worker.java
 /Users/tvicxx/Documents/SCUOLAZOO/Lab3/cross/src/main/java/Eseguibili/Client/Receiver.java
 /Users/tvicxx/Documents/SCUOLAZOO/Lab3/cross/src/main/java/Eseguibili/Client/Printer.java

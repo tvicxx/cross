@@ -75,7 +75,7 @@ public class ServerMain{
             while (true){
                 Socket receivedSocket = serverSocket.accept();
                 //System.out.println(Ansi.GREEN + "[--ServerMain--] New client connected: " + receivedSocket.getInetAddress().getHostAddress()+ Ansi.RESET);
-                Worker worker = new Worker(receivedSocket, userMap, orderBook);
+                Worker worker = new Worker(receivedSocket, userMap, orderBook, UDPport++);
                 workerList.add(worker);
                 threadPool.execute(worker);
             }

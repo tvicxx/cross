@@ -97,7 +97,6 @@ public class ClientMain{
                 printer.print(welcome);
                 printer.prompt();
                 
-
                 while(shared.isShuttingDown.get() == false){
                     String input = scannerInput.nextLine();
 
@@ -137,7 +136,7 @@ public class ClientMain{
                                 mesGson = new GsonMess<Values>("login", new GsonUser(command[1], command[2]));
                                 writer.println(gson.toJson(mesGson));
 
-                                /*while(udp == false){
+                                while(udp == false){
                                     if(shared.isLogged.get()){
                                         try{
                                             InetAddress serverAddress = InetAddress.getByName(hostname);
@@ -155,7 +154,7 @@ public class ClientMain{
                                         udp = true;
                                     }
                                     if(shared.loginError.get() == true) break;
-                                }*/
+                                }
 
                             break;
 
