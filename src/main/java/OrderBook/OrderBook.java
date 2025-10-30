@@ -10,6 +10,13 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentSkipListMap;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+
+import java.net.InetAddress;
+
+import Eseguibili.Server.SocketUDPValue;
+import Varie.Ansi;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -86,18 +93,20 @@ public class OrderBook {
         }
     }
 
-    public synchronized int askOrder(int size, int price, String user){
+    public synchronized int askOrder(int size, int price, String user, ConcurrentSkipListMap<String, SocketUDPValue> socketMapUDP){
         int remaining = size;
         int orderId = getLastOrderID();
         for(Map.Entry<Integer, OrderValue> entry : bidMap.entrySet()){
             if(entry.getKey() >= price){
                 //la richiesta combacia con un ordine bid esistente
-                remaining = tryMatchOrder("ask", remaining, user, "bid", entry.getValue().userList, "limit", entry.getKey(), orderId);
+                remaining = tryMatchOrder("ask", remaining, user, "bid", entry.getValue().userList, "limit", entry.getKey(), orderId, socketMapUDP);
             }
             if(remaining == 0){
                 updateOrderBook();
                 return orderId;
             }
+
+        System.out.printf(Ansi.RED_BACKGROUND + "Inserting limit ask order: size %d, price %d, user %s\n" + Ansi.RESET, size, price, user);
         }
         if(remaining > 0){
             //inserisco l'ordine nella orderbook
@@ -118,12 +127,12 @@ public class OrderBook {
         UserValue uv = new UserValue(size, orderId, user);
         if(askMap.containsKey(price)){
             //aggiorno l'OrderValue esistente
-            OrderValue ov = bidMap.get(price);
+            OrderValue ov = askMap.get(price);
             //aggiungo un nuovo UserValue alla userList
             ov.userList.add(uv);
             int newSize = ov.size + size;
             OrderValue newOv = new OrderValue(newSize, price * newSize, ov.userList);
-            bidMap.put(price, newOv);
+            askMap.put(price, newOv);
         }
         else{
             //creo un nuovo OrderValue
@@ -134,12 +143,12 @@ public class OrderBook {
         }
     }
 
-    public synchronized int bidOrder(int size, int price, String user){
+    public synchronized int bidOrder(int size, int price, String user, ConcurrentSkipListMap<String, SocketUDPValue> socketMapUDP){
         int remaining = size;
         int orderId = getLastOrderID();
         for(Map.Entry<Integer, OrderValue> entry : askMap.entrySet()){
             if(entry.getKey() <= price){
-                remaining = tryMatchOrder("bid", remaining, user, "ask", entry.getValue().userList, "limit", entry.getKey(), orderId);
+                remaining = tryMatchOrder("bid", remaining, user, "ask", entry.getValue().userList, "limit", entry.getKey(), orderId, socketMapUDP);
             }
             if(remaining == 0){
                 updateOrderBook();
@@ -174,33 +183,53 @@ public class OrderBook {
         }
     }
 
-    public synchronized int tryMatchOrder(String type1, int remaining, String user1, String type2, ConcurrentLinkedQueue<UserValue> userList, String orderType, int price, int orderId){
+    public synchronized int tryMatchOrder(String type1, int remaining, String user1, String type2, ConcurrentLinkedQueue<UserValue> userList, String orderType, int price, int orderId, ConcurrentSkipListMap<String, SocketUDPValue> socketMapUDP){
         //scorro la userList dell'OrderValue
         for(UserValue uv : userList){
             if(uv.user.equals(user1) == false){
                 if(uv.size < remaining){
+                    //l'ordine di user1 viene parzialmente completato da parte di uv (uv viene completamente eseguito)
                     remaining -= uv.size;
+                    
                     //messaggi udp a utenti coinvolti
-                    //per ora stampo sul server
+                    //notifico l'user1 di avvenuta esecuzione parziale del suo ordine
+                    notifyOrderUser(socketMapUDP, user1, orderId, type1, orderType, uv.size, price);
+
+                    //notifico l'uv.user di avvenuta esecuzione totale del suo ordine
+                    notifyOrderUser(socketMapUDP, uv.user, uv.orderId, type2, "limit", uv.size, price);
+
                     System.out.println("[--OrderBook--] Matched " + uv.size + " units at price " + price + " between users " + user1 + " and " + uv.user + " for order type " + type1 + "/" + type2);
 
                     //rimuovo l'UserValue dalla userList
                     userList.remove(uv);
                 }
                 else if(uv.size > remaining){
+                    //l'ordine di user1 viene completato da parte di uv (uv viene parzialmente eseguito)
                     uv.size -= remaining;
 
                     //messaggi udp a utenti coinvolti
-                    //per ora stampo sul server
-                    System.out.println("[--OrderBook--] Matched " + remaining + " units at price " + price + " between users " + user1 + " and " + uv.user + " for order type " + type1 + "/" + type2);
+                    //notifico l'user1 di avvenuta esecuzione totale del suo ordine
+                    notifyOrderUser(socketMapUDP, user1, orderId, type1, orderType, remaining, price);
+
+                    //notifica l'uv.user di avvenuta esecuzione parziale del suo ordine
+                    notifyOrderUser(socketMapUDP, uv.user, uv.orderId, type2, "limit", remaining, price);
+
+                    //System.out.println("[--OrderBook--] Matched " + remaining + " units at price " + price + " between users " + user1 + " and " + uv.user + " for order type " + type1 + "/" + type2);
 
                     remaining = 0;
                     break;
                 }
                 else{
+                    //l'ordine di user1 viene completato da parte di uv (uv viene completamente eseguito)
+                    
                     //messaggi udp a utenti coinvolti
-                    //per ora stampo sul server
-                    System.out.println("[--OrderBook--] Matched " + uv.size + " units at price " + price + " between users " + user1 + " and " + uv.user + " for order type " + type1 + "/" + type2);
+                    //notifico l'user1 di avvenuta esecuzione totale del suo ordine
+                    notifyOrderUser(socketMapUDP, user1, orderId, type1, orderType, remaining, price);
+
+                    //notifico l'uv.user di avvenuta esecuzione totale del suo ordine
+                    notifyOrderUser(socketMapUDP, uv.user, uv.orderId, type2, "limit", uv.size, price);
+
+                    //System.out.println("[--OrderBook--] Matched " + uv.size + " units at price " + price + " between users " + user1 + " and " + uv.user + " for order type " + type1 + "/" + type2);
 
                     userList.remove(uv);
                     remaining = 0;
@@ -257,7 +286,7 @@ public class OrderBook {
         return userSize;
     }
 
-    public synchronized int marketOrder(String type, int size, String user){
+    public synchronized int marketOrder(String type, int size, String user, ConcurrentSkipListMap<String, SocketUDPValue> socketMapUDP){
         int remaining = size;
 
         if(type.equals("ask")){
@@ -268,7 +297,7 @@ public class OrderBook {
             int orderId = getLastOrderID();
 
             for(Map.Entry<Integer, OrderValue> entry : bidMap.entrySet()){
-                remaining = tryMatchOrder(type, remaining, user, "bid", entry.getValue().userList, "market", entry.getKey(), orderId);
+                remaining = tryMatchOrder(type, remaining, user, "bid", entry.getValue().userList, "market", entry.getKey(), orderId, socketMapUDP);
                 if(remaining == 0){
                     updateOrderBook();
                     return orderId;
@@ -282,7 +311,7 @@ public class OrderBook {
 
             int orderId = getLastOrderID();
             for(Map.Entry<Integer, OrderValue> entry : askMap.entrySet()){
-                remaining = tryMatchOrder(type, remaining, user, "ask", entry.getValue().userList, "market", entry.getKey(), orderId);
+                remaining = tryMatchOrder(type, remaining, user, "ask", entry.getValue().userList, "market", entry.getKey(), orderId, socketMapUDP);
                 if(remaining == 0){
                     updateOrderBook();
                     return orderId;
@@ -341,5 +370,32 @@ public class OrderBook {
         //implementare controllo in stopOrder
 
         return 101;
+    }
+
+    public synchronized void notifyOrderUser(ConcurrentSkipListMap<String, SocketUDPValue> socketMapUDP, String user, int orderId, String type1, String orderType, int size, int price){
+        int port = -1;
+        InetAddress address = null;
+        for(Map.Entry<String,SocketUDPValue> entry : socketMapUDP.entrySet()){
+            if(entry.getKey().equals(user)){
+                port = entry.getValue().port;
+                address = entry.getValue().address;
+                break;
+            }
+        }
+        if(port != -1 && address != null){
+            try(DatagramSocket DatagramSocketUDP = new DatagramSocket()){
+                TradeNotifyUDP trade = new TradeNotifyUDP(orderId, type1, orderType, size, price, (int)(System.currentTimeMillis() / 1000L));
+                Gson gson = new Gson();
+                String message = gson.toJson(trade);
+                DatagramPacket packet = new DatagramPacket(message.getBytes(), message.length(), address, port);
+                DatagramSocketUDP.send(packet);
+            }
+            catch(Exception e){
+                System.err.println(Ansi.RED + "[--OrderBook--] " + Ansi.RESET + "Error notifying user " + user + ": " + e.getMessage() + "\n");
+            }
+        }
+        else{
+            System.err.println(Ansi.RED + "[--OrderBook--] " + Ansi.RESET + "Error: could not find UDP socket for user " + user + "\n");
+        }
     }
 }

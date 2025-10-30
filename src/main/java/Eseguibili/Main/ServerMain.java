@@ -29,6 +29,7 @@ public class ServerMain{
 
     public static ConcurrentHashMap <String, Tupla> userMap = new ConcurrentHashMap<>();
     public static ConcurrentLinkedQueue <Worker> workerList = new ConcurrentLinkedQueue<>();
+    public static ConcurrentSkipListMap <String, SocketUDPValue> socketMapUDP = new ConcurrentSkipListMap<>();
 
     public static final ExecutorService threadPool = Executors.newCachedThreadPool();
 
@@ -75,7 +76,7 @@ public class ServerMain{
             while (true){
                 Socket receivedSocket = serverSocket.accept();
                 //System.out.println(Ansi.GREEN + "[--ServerMain--] New client connected: " + receivedSocket.getInetAddress().getHostAddress()+ Ansi.RESET);
-                Worker worker = new Worker(receivedSocket, userMap, orderBook, UDPport++);
+                Worker worker = new Worker(receivedSocket, userMap, orderBook, UDPport++, socketMapUDP);
                 workerList.add(worker);
                 threadPool.execute(worker);
             }

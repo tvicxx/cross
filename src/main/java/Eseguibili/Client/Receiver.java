@@ -28,13 +28,8 @@ public class Receiver implements Runnable{
             String message;
             while(Thread.currentThread().isInterrupted() == false && socketTCP.isClosed() == false && (message = reader.readLine()) != null){
                 JsonObject jsonMess = JsonParser.parseString(message).getAsJsonObject();
-                //System.out.println("[Receiver] Messaggio ricevuto: " + message);
+                //printer.print("[Client-Receiver] " + Ansi.GREEN + "Message received from server: " + message + Ansi.RESET);
                 
-                //ricezione del comando UDPport
-                if(jsonMess.get("type").getAsString().equals("UDPport")){
-                    shared.UDPport = jsonMess.get("response").getAsInt();
-                    continue;
-                }
                 if(jsonMess.get("response") != null){
                     if(jsonMess.get("response").getAsInt() == 100){
                         printer.print("[Client] " + Ansi.GREEN + "Operation successful!" + Ansi.RESET);
@@ -45,6 +40,10 @@ public class Receiver implements Runnable{
                         else if(jsonMess.get("type").getAsString().equals("logout")){
                             shared.isClosed.set(true);
                         }
+                    }
+                    else if(jsonMess.get("type").getAsString().equals("UDPport")){
+                        shared.UDPport = jsonMess.get("response").getAsInt();
+                        continue;
                     }
                     else{
                         printer.print("[Client] " + Ansi.RED + jsonMess.get("errorMessage").getAsString() + Ansi.RESET);

@@ -22,12 +22,11 @@ public class Worker implements Runnable {
 
     private Socket receivedSocket;
     public ConcurrentHashMap <String, Tupla> userMap;
+    public ConcurrentSkipListMap <String, SocketUDPValue> socketMapUDP;
     public OrderBook orderBook;
     public TimeoutHandler timeout;
 
     public int UDPport;
-    public int clientPort;
-    public InetAddress clientAddress;
 
     private String username = null;
     private String password = null;
@@ -46,11 +45,12 @@ public class Worker implements Runnable {
         public volatile long lastActivity = System.currentTimeMillis();
     }
     
-    public Worker(Socket receivedSocket, ConcurrentHashMap <String, Tupla> userMap, OrderBook orderBook, int UDPport){
+    public Worker(Socket receivedSocket, ConcurrentHashMap <String, Tupla> userMap, OrderBook orderBook, int UDPport, ConcurrentSkipListMap <String, SocketUDPValue> socketMapUDP){
         this.receivedSocket = receivedSocket;
         this.userMap = userMap;
         this.orderBook = orderBook;
         this.UDPport = UDPport;
+        this.socketMapUDP = socketMapUDP;
     }
 
     @Override
@@ -71,7 +71,7 @@ public class Worker implements Runnable {
                     try{
                         String message = reader.readLine();
 
-                        System.out.printf(Ansi.BLUE + "[--WORKER %s--] " + Ansi.RESET + "Received message: %s\n", Thread.currentThread().getName(), message);
+                        //System.out.printf(Ansi.BLUE + "[--WORKER %s--] " + Ansi.RESET + "Received message: %s\n", Thread.currentThread().getName(), message);
 
                         JsonObject obj = JsonParser.parseString(message).getAsJsonObject();
                         String operation = obj.get("operation").getAsString();
@@ -141,9 +141,14 @@ public class Worker implements Runnable {
                                         UDPsocket.receive(packet); //ricezione del pacchetto di conferma dal client
                                         //System.out.println("[--WORKER " + Thread.currentThread().getName() + "--] Received UDP packet from client");
 
-                                        clientPort = packet.getPort();
-                                        clientAddress = packet.getAddress();
+                                        SocketUDPValue socketUDPValue = new SocketUDPValue(packet.getAddress(), packet.getPort());
 
+                                        if(socketMapUDP.containsKey(onlineUser)){
+                                            socketMapUDP.replace(onlineUser, socketUDPValue);
+                                        }
+                                        else{
+                                            socketMapUDP.put(onlineUser, socketUDPValue);
+                                        }
                                         System.out.printf(Ansi.GREEN + "[--WORKER %s--] " + Ansi.RESET + "User %s logged in\n", Thread.currentThread().getName(), onlineUser);
                                     }
                                 }
@@ -161,7 +166,7 @@ public class Worker implements Runnable {
                                 String old_password = valuesUC.getOldPassword();
                                 String new_password = valuesUC.getNewPassword();
 
-                                System.out.printf(Ansi.YELLOW + "[--WORKER %s--] " + Ansi.RESET + "Updating credentials for user %s\n", Thread.currentThread().getName(), username);
+                                //System.out.printf(Ansi.YELLOW + "[--WORKER %s--] " + Ansi.RESET + "Updating credentials for user %s\n", Thread.currentThread().getName(), username);
 
                                 try{
                                     if(onlineUser != null){
@@ -229,7 +234,8 @@ public class Worker implements Runnable {
                                     int price = valuesLimit.getPrice();
                                     int orderId = -1;
 
-                                    if(size <= 0 || price <= 0 || size > (2^31) -1 || price > (2^31) -1){
+                                    //non c'è bisogno di controllare il limite superiore di size e price in quanto sono di tipo int quindi già limitati a (2^31)-1
+                                    if(size <= 0 || price <= 0){
                                         responseOrder.setResponseOrder("-1");
                                         responseOrder.sendMessage(gson, writer);
                                         break;
@@ -237,11 +243,11 @@ public class Worker implements Runnable {
 
                                     if(type.equals("ask")){
                                         //inserimento ordine di vendita
-                                        orderId = orderBook.askOrder(size, price, onlineUser);
+                                        orderId = orderBook.askOrder(size, price, onlineUser, socketMapUDP);
                                     }
                                     else if(type.equals("bid")){
                                         //inserimento ordine di acquisto
-                                        orderId = orderBook.bidOrder(size, price, onlineUser);
+                                        orderId = orderBook.bidOrder(size, price, onlineUser, socketMapUDP);
                                     }
                                     else{
                                         responseOrder.setResponseOrder("-1");
@@ -270,12 +276,13 @@ public class Worker implements Runnable {
                                     int size = valuesMarket.getSize();
                                     int orderId = -1;
 
-                                    if(size <= 0 || size > (2^31) -1){
+                                    //non c'è bisogno di controllare il limite superiore di size in quanto è di tipo int quindi già limitato a (2^31)-1
+                                    if(size <= 0){
                                         responseOrder.setResponseOrder("-1");
                                         responseOrder.sendMessage(gson, writer);
                                         break;
                                     }
-                                    orderId = orderBook.marketOrder(type, size, onlineUser);
+                                    orderId = orderBook.marketOrder(type, size, onlineUser, socketMapUDP);
 
                                     responseOrder.setResponseOrder(String.valueOf(orderId));
                                     responseOrder.sendMessage(gson, writer);

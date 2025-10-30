@@ -10,6 +10,7 @@ GsonClasses/Responses/GsonResponse.class
 Eseguibili/Client/Receiver.class
 OrderBook/UserValue.class
 GsonClasses/Commands/GsonLimitStopOrder.class
+Eseguibili/Server/SocketUDPValue.class
 Eseguibili/Main/ServerMain.class
 GsonClasses/Responses/GsonResponseOrder.class
 GsonClasses/Commands/GsonUser.class
