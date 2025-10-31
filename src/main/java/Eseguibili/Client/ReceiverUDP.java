@@ -34,15 +34,15 @@ public class ReceiverUDP implements Runnable{
                 TradeNotifyUDP notify = gson.fromJson(message, TradeNotifyUDP.class);
 
                 if(notify.getSize() == 0 && notify.getPrice() == 0){
-                    printer.print("[Client-ReceiverUDP] " + Ansi.YELLOW + "Trade Notification: Order ID " + notify.getOrderId() + " of type " + notify.getType() + " has been fully executed." + Ansi.RESET);
+                    printer.print("\n[Client] " + Ansi.YELLOW + "Trade Notification: Order ID " + notify.getOrderId() + " of type " + notify.getType() + " has been fully executed." + Ansi.RESET);
                 }
                 else{
-                    printer.print("[Client-ReceiverUDP] " + Ansi.YELLOW + "Trade Notification: Order ID " + notify.getOrderId() + " of type " + notify.getType() + " executed for size " + notify.getSize() + " at price " + notify.getPrice() + "." + Ansi.RESET);
+                    printer.print("\n[Client] " + Ansi.YELLOW + "Trade Notification: Order ID " + notify.getOrderId() + " of type " + notify.getType() + " executed for size " + notify.getSize() + " at price " + notify.getPrice() + "." + Ansi.RESET);
                 }
                 printer.prompt();
             }
             catch(Exception e){
-                System.err.println("[Client-ReceiverUDP] " + Ansi.RED + "Error in UDP receiver: " + e.getMessage() + Ansi.RESET);
+                System.err.println("\n[Client-ReceiverUDP] " + Ansi.RED + "Error in UDP receiver: " + e.getMessage() + Ansi.RESET);
             }
         }
     }
