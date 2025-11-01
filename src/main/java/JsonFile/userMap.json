@@ -21,7 +21,7 @@
   },
   "tommaso": {
     "password": "psw",
-    "isLogged": false
+    "isLogged": true
   },
   "loren": {
     "password": "cate",

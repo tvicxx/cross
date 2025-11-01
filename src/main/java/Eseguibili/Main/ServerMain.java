@@ -157,9 +157,14 @@ public class ServerMain{
                     orderBook.lastId = reader.nextInt();
                     //System.out.println("[--ServerMain--] lastId loaded: " + orderBook.lastId);
                 }
+                else{
+                    reader.skipValue();
+                }
             }
             reader.endObject();
             System.out.println("[--ServerMain--] OrderBook loaded successfully!");
+            
+            //non leggo stopOrder perche' sono dati non persistenti ma lo inizializzo vuoto
             orderBook.stopQueue = new ConcurrentLinkedQueue<>();
         }
         catch(EOFException e){

@@ -255,6 +255,8 @@ public class Worker implements Runnable {
                                         break;
                                     }
 
+                                    orderBook.checkStopOrders(socketMapUDP);
+
                                     //aggiornamento orderBook.json
 
                                     responseOrder.setResponseOrder(String.valueOf(orderId));
@@ -284,6 +286,10 @@ public class Worker implements Runnable {
                                     }
                                     orderId = orderBook.marketOrder(type, size, onlineUser, socketMapUDP);
 
+                                    orderBook.updateOrderBook();
+
+                                    orderBook.checkStopOrders(socketMapUDP);
+
                                     responseOrder.setResponseOrder(String.valueOf(orderId));
                                     responseOrder.sendMessage(gson, writer);
                                 }
@@ -296,6 +302,31 @@ public class Worker implements Runnable {
                             break;
 
                             case "insertStopOrder":
+                                objValues = obj.getAsJsonObject("values");
+                                GsonLimitStopOrder valuesStop = new Gson().fromJson(objValues, GsonLimitStopOrder.class);
+
+                                String type = valuesStop.getType();
+                                int size = valuesStop.getSize();
+                                int price = valuesStop.getPrice();
+
+                                //non c'è bisogno di controllare il limite superiore di size e price in quanto sono di tipo int quindi già limitati a (2^31)-1
+                                if(size <= 0 || price <= 0){
+                                    responseOrder.setResponseOrder("-1");
+                                    responseOrder.sendMessage(gson, writer);
+                                    break;
+                                }
+                                if(!type.equals("ask") && !type.equals("bid")){
+                                    responseOrder.setResponseOrder("-1");
+                                    responseOrder.sendMessage(gson, writer);
+                                    break;
+                                }
+                                int orderId = orderBook.getLastOrderID();
+                                orderBook.stopQueue.add(new StopValue(orderId, onlineUser, type, size, price));
+
+                                orderBook.checkStopOrders(socketMapUDP);
+
+                                responseOrder.setResponseOrder(String.valueOf(orderId));
+                                responseOrder.sendMessage(gson, writer);
 
                             break;
 

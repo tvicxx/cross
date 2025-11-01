@@ -75,12 +75,11 @@ public class OrderBook {
         
         // Crea una mappa con tutti i dati dell'order book
         Map<String, Object> orderBookData = new HashMap<>();
-        //orderBookData.put("lastOrderId", lastOrderId);
         orderBookData.put("askMap", askMap);
         orderBookData.put("spread", spread);
         orderBookData.put("bidMap", bidMap);
         orderBookData.put("lastId", lastId);
-        //orderBookData.put("stopQueue", stopQueue);
+        //inserimento stopQueue in array per serializzazione
         
         // FileWriter senza parametri SOVRASCRIVE completamente il file
         try (FileWriter writer = new FileWriter(orderBookPath)){
@@ -321,6 +320,46 @@ public class OrderBook {
         return -1;
     }
 
+    public synchronized void checkStopOrders(ConcurrentSkipListMap<String, SocketUDPValue> socketMapUDP){
+        //scorro la stopQueue
+        for(StopValue sv : stopQueue){
+            if(sv.type.equals("ask")){
+                if(bidMap.isEmpty() == false){
+                    if(sv.price >= bidMap.firstKey()){
+                        int remaining = sv.size;
+                        for(Map.Entry<Integer, OrderValue> entry : bidMap.entrySet()){
+                            remaining = tryMatchOrder(sv.type, remaining, sv.user, "bid", entry.getValue().userList, "market", entry.getKey(), sv.orderId, socketMapUDP);
+                            if(remaining == 0){
+                                //rimuovo lo stopOrder dalla coda
+                                stopQueue.remove(sv);
+                                updateOrderBook();
+                                break;
+                            }
+                        }
+                    }
+                    break;
+                }
+            }
+            else{
+                if(askMap.isEmpty() == false){
+                    if(sv.price <= askMap.firstKey()){
+                        int remaining = sv.size;
+                        for(Map.Entry<Integer, OrderValue> entry : askMap.entrySet()){
+                            remaining = tryMatchOrder(sv.type, remaining, sv.user, "ask", entry.getValue().userList, "market", entry.getKey(), sv.orderId, socketMapUDP);
+                            if(remaining == 0){
+                                //rimuovo lo stopOrder dalla coda
+                                stopQueue.remove(sv);
+                                updateOrderBook();
+                                break;
+                            }
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
     public synchronized int getLastOrderID(){
         lastId += 1;
         return lastId;
@@ -368,6 +407,13 @@ public class OrderBook {
         }
 
         //implementare controllo in stopOrder
+        for(StopValue sv : stopQueue){
+            if(sv.orderId == orderId && sv.user.equals(user)){
+                stopQueue.remove(sv);
+                updateOrderBook();
+                return 100;
+            }
+        }
 
         return 101;
     }
