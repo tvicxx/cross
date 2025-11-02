@@ -136,6 +136,7 @@ public class ClientMain{
                                 mesGson = new GsonMess<Values>("login", new GsonUser(command[1], command[2]));
                                 writer.println(gson.toJson(mesGson));
 
+                                shared.loginError.set(false);
                                 while(udp == false){
                                     if(shared.isLogged.get()){
                                         try{

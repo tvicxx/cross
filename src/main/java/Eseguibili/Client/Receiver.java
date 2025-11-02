@@ -53,6 +53,11 @@ public class Receiver implements Runnable{
                     }
                     else{
                         printer.print("[Client] " + Ansi.RED + jsonMess.get("errorMessage").getAsString() + Ansi.RESET);
+
+                        if(jsonMess.get("type").getAsString().equals("login")){
+                            shared.loginError.set(true);
+                            shared.isLogged.set(false);
+                        }
                     }
                     printer.prompt();
                 }
