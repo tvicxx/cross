@@ -32,6 +32,12 @@ public class Receiver implements Runnable{
                 
                 if(jsonMess.get("response") != null){
                     if(jsonMess.get("response").getAsInt() == 100){
+                        if(jsonMess.get("type").getAsString().equals("getPriceHistory")){
+                            printer.print(jsonMess.get("errorMessage").getAsString());
+                            printer.prompt();
+                            continue;
+                        }
+                        else
                         printer.print("[Client] " + Ansi.GREEN + "Operation successful!" + Ansi.RESET);
                         if(jsonMess.get("type").getAsString().equals("login")){
                             shared.isLogged.set(true);

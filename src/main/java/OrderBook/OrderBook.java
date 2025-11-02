@@ -2,24 +2,32 @@ package OrderBook;
 
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Date;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 
 import java.net.InetAddress;
+import java.text.SimpleDateFormat;
 
 import Eseguibili.Server.SocketUDPValue;
 import Varie.Ansi;
+import GsonClasses.Commands.GsonTrade;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.google.gson.stream.JsonReader;
 
 public class OrderBook {
     public ConcurrentSkipListMap<Integer,OrderValue> askMap;
@@ -30,6 +38,7 @@ public class OrderBook {
 
     public static final String configFile = "src/main/java/server.properties";
     public static String orderBookPath;
+    public static String storicoOrdiniPath;
 
     public OrderBook(ConcurrentSkipListMap<Integer,OrderValue> askMap, int spread, ConcurrentLinkedQueue<StopValue> stopQueue, ConcurrentSkipListMap<Integer,OrderValue> bidMap, int lastId){
         this.askMap = askMap;
@@ -53,6 +62,7 @@ public class OrderBook {
         Properties properties = new Properties();
         properties.load(input);
         orderBookPath = properties.getProperty("orderBookPath");
+        storicoOrdiniPath = properties.getProperty("storicoOrdiniPath");
         input.close();
     }
 
@@ -193,14 +203,17 @@ public class OrderBook {
                     //messaggi udp a utenti coinvolti
                     //notifico l'user1 di avvenuta esecuzione parziale del suo ordine
                     notifyOrderUser(socketMapUDP, user1, orderId, type1, orderType, uv.size, price);
+                    pushTradeToHistory(orderId, type1, orderType, uv.size , price, (int)(System.currentTimeMillis() / 1000L));
 
                     //notifico l'uv.user di avvenuta esecuzione totale del suo ordine
                     notifyOrderUser(socketMapUDP, uv.user, uv.orderId, type2, "limit", uv.size, price);
+                    pushTradeToHistory(uv.orderId, type2, "limit", uv.size , price, (int)(System.currentTimeMillis() / 1000L));
 
                     System.out.println("[--OrderBook--] Matched " + uv.size + " units at price " + price + " between users " + user1 + " and " + uv.user + " for order type " + type1 + "/" + type2);
 
                     //rimuovo l'UserValue dalla userList
                     userList.remove(uv);
+                    break;
                 }
                 else if(uv.size > remaining){
                     //l'ordine di user1 viene completato da parte di uv (uv viene parzialmente eseguito)
@@ -209,9 +222,11 @@ public class OrderBook {
                     //messaggi udp a utenti coinvolti
                     //notifico l'user1 di avvenuta esecuzione totale del suo ordine
                     notifyOrderUser(socketMapUDP, user1, orderId, type1, orderType, remaining, price);
+                    pushTradeToHistory(orderId, type1, orderType, remaining , price, (int)(System.currentTimeMillis() / 1000L));
 
                     //notifica l'uv.user di avvenuta esecuzione parziale del suo ordine
                     notifyOrderUser(socketMapUDP, uv.user, uv.orderId, type2, "limit", remaining, price);
+                    pushTradeToHistory(uv.orderId, type2, "limit", remaining , price, (int)(System.currentTimeMillis() / 1000L));
 
                     //System.out.println("[--OrderBook--] Matched " + remaining + " units at price " + price + " between users " + user1 + " and " + uv.user + " for order type " + type1 + "/" + type2);
 
@@ -224,9 +239,11 @@ public class OrderBook {
                     //messaggi udp a utenti coinvolti
                     //notifico l'user1 di avvenuta esecuzione totale del suo ordine
                     notifyOrderUser(socketMapUDP, user1, orderId, type1, orderType, remaining, price);
+                    pushTradeToHistory(orderId, type1, orderType, remaining , price, (int)(System.currentTimeMillis() / 1000L));
 
                     //notifico l'uv.user di avvenuta esecuzione totale del suo ordine
                     notifyOrderUser(socketMapUDP, uv.user, uv.orderId, type2, "limit", uv.size, price);
+                    pushTradeToHistory(uv.orderId, type2, "limit", uv.size , price, (int)(System.currentTimeMillis() / 1000L));
 
                     //System.out.println("[--OrderBook--] Matched " + uv.size + " units at price " + price + " between users " + user1 + " and " + uv.user + " for order type " + type1 + "/" + type2);
 
@@ -443,5 +460,112 @@ public class OrderBook {
         else{
             System.err.println(Ansi.RED + "[--OrderBook--] " + Ansi.RESET + "Error: could not find UDP socket for user " + user + "\n");
         }
+    }
+
+    public synchronized void pushTradeToHistory(int orderId, String type, String orderType, int size, int price, long timestamp){
+        //aggiungo la trade al file storicoOrdini.json che è un file json contenente una chiave trades contenente un array di oggetti GsonTrade
+        Gson gson = new GsonBuilder().setPrettyPrinting().create();
+    
+        try{
+            //leggo il file JSON esistente
+            FileReader reader = new FileReader(storicoOrdiniPath);
+            JsonObject jsonObject = JsonParser.parseReader(reader).getAsJsonObject();
+            reader.close();
+        
+            //ottiengo l'array trades
+            JsonArray tradesArray = jsonObject.getAsJsonArray("trades");
+        
+            //converto il nuovo ordine in JsonObject
+            GsonTrade newTrade = new GsonTrade(orderId, type, orderType, size, price, timestamp);
+            JsonObject newTradeJson = JsonParser.parseString(gson.toJson(newTrade)).getAsJsonObject();
+        
+            //aggiungo il nuovo ordine all'array
+            tradesArray.add(newTradeJson);
+        
+            //scrivo il file aggiornato con formattazione custom
+            FileWriter fileWriter = new FileWriter(storicoOrdiniPath);
+            fileWriter.write("{\n  \"trades\": [\n");
+        
+            Gson compactGson = new Gson(); // Gson senza pretty printing per gli oggetti dell'array
+        
+            for(int i = 0; i < tradesArray.size(); i++){
+                fileWriter.write("    " + compactGson.toJson(tradesArray.get(i)));
+                if(i < tradesArray.size() - 1){
+                    fileWriter.write(",");
+                }
+                fileWriter.write("\n");
+            }
+        
+            fileWriter.write("  ]\n}");
+            fileWriter.close();
+
+            //System.out.println(Ansi.GREEN + "[--OrderBook--] " + Ansi.RESET + "Trade added to history: " + newTrade.toString() + "\n");
+        
+        }
+        catch(IOException e){
+            System.err.println(Ansi.RED + "[--OrderBook--] " + Ansi.RESET + "Error updating trade history: " + e.getMessage() + "\n");
+            e.printStackTrace();
+        }
+    }
+
+    public synchronized String getPriceHistory(String month, String year){
+        StringBuilder priceHistory = new StringBuilder();
+        ConcurrentSkipListMap<Integer,DayPriceData> daysMap = new ConcurrentSkipListMap<>();
+
+        try(JsonReader reader = new JsonReader(new FileReader(storicoOrdiniPath))){
+            Gson gson = new Gson();
+            JsonObject jsonObject = JsonParser.parseReader(reader).getAsJsonObject();
+            JsonArray tradesArray = jsonObject.getAsJsonArray("trades");
+            
+            for(int i = 0; i < tradesArray.size(); i++){
+                JsonObject tradeObj = tradesArray.get(i).getAsJsonObject();
+                GsonTrade trade = gson.fromJson(tradeObj, GsonTrade.class);
+
+                //estraggo la data dal timestamp
+                Date date = new Date(trade.getTimestamp() * 1000L);
+                SimpleDateFormat sdfMonth = new SimpleDateFormat("MM");
+                SimpleDateFormat sdfYear = new SimpleDateFormat("yyyy");
+                SimpleDateFormat sdfDay = new SimpleDateFormat("dd");
+                String tradeMonth = sdfMonth.format(date);
+                String tradeYear = sdfYear.format(date);
+                String tradeDay = sdfDay.format(date);
+
+                //controllo se il trade appartiene al mese e anno richiesti
+                if(tradeMonth.equals(String.format("%02d", Integer.parseInt(month))) && tradeYear.equals(year)){
+                    int day = Integer.parseInt(tradeDay);
+                    DayPriceData dpd = daysMap.getOrDefault(day, new DayPriceData());
+                    dpd.updatePrices(trade.getPrice());
+                    daysMap.put(day, dpd);
+                }
+            }
+
+            //costruisco la stringa del price history
+
+            //inserisco l'intestazione
+            priceHistory.append(String.format("\n" + Ansi.YELLOW_BACKGROUND + "Price History for %02d/%s:" + Ansi.RESET + "\n", Integer.parseInt(month), year));
+            priceHistory.append(Ansi.BLUE_BACKGROUND + "Day  |  Open  |  Close  |  High  |  Low " + Ansi.RESET+ "\n");
+            priceHistory.append("---------------------------------------\n");
+            int bool = 0;
+            for(Map.Entry<Integer, DayPriceData> entry : daysMap.entrySet()){
+                int day = entry.getKey();
+                DayPriceData dpd = entry.getValue();
+                if(bool == 0){
+                    priceHistory.append(String.format(Ansi.BLACK_BACKGROUND + "%02d   |  %5d |  %6d |  %5d |  %4d " + Ansi.RESET+ "\n", day, dpd.openPrice, dpd.closePrice, dpd.highPrice, dpd.lowPrice));
+                    bool = 1;
+                }
+                else {
+                    priceHistory.append(String.format(Ansi.WHITE_BACKGROUND + "%02d   |  %5d |  %6d |  %5d |  %4d " + Ansi.RESET+ "\n", day, dpd.openPrice, dpd.closePrice, dpd.highPrice, dpd.lowPrice));
+                    bool = 0;
+                }
+            }
+            priceHistory.append("---------------------------------------\n");
+
+        }
+        catch(IOException e){
+            System.err.println(Ansi.RED + "[--OrderBook--] " + Ansi.RESET + "Error retrieving price history: " + e.getMessage() + "\n");
+            e.printStackTrace();
+        }
+
+        return priceHistory.toString();
     }
 }

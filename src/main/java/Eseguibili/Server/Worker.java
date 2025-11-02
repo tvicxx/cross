@@ -349,6 +349,31 @@ public class Worker implements Runnable {
                                 }
                             break;
 
+                            case "getPriceHistory":
+                                try{
+                                    objValues = obj.getAsJsonObject("values");
+
+                                    //uso la classe GsonCancelOrder solo per prelevare il campo month per evitare di creare una nuova classe Gson apposita
+                                    GsonPriceHistory valuesPH = new Gson().fromJson(objValues, GsonPriceHistory.class);
+                                    int month = valuesPH.getMonth();
+                                    int year = valuesPH.getYear();
+
+                                    if(month < 1 || month > 12 && year < 1970){
+                                        response.setResponse("getPriceHistory", 101, "invalid month or year");
+                                        response.sendMessage(gson, writer);
+                                        break;
+                                    }
+
+                                    String priceHistory = orderBook.getPriceHistory(String.valueOf(month), String.valueOf(year));
+
+                                    response.setResponse("getPriceHistory", 100, priceHistory);
+                                    response.sendMessage(gson, writer);
+                                }
+                                catch(Exception e){
+                                    System.out.printf(Ansi.RED + "[--WORKER %s--] " + Ansi.RESET + "Error in getPriceHistory\n", Thread.currentThread().getName());
+                                }
+                            break;
+
                             default:
                                 System.out.printf(Ansi.RED + "[--WORKER %s--] " + Ansi.RESET + "Error, command received not found\n", Thread.currentThread().getName());
                         }

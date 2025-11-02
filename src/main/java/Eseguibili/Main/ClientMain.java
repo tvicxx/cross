@@ -46,7 +46,7 @@ public class ClientMain{
                 "  - insertMarketOrder(tipo, dimensione) : send a MarketOrder type buy/sell order \n" +
                 "  - insertStopOrder(tipo, dimensione, stopPrice) : send a StopOrder type sell/buy order \n" +
                 "  - cancelOrder(orderId) : cancels an existing order \n" +
-                "  - getPriceHistory(mese) : retrieves the asset price history of the month \n" +
+                "  - getPriceHistory(mese, anno) : retrieves the asset price history of the month \n" +
                 "  - help() : displays this help message \n" +
                 Ansi.RESET;
 
@@ -270,6 +270,27 @@ public class ClientMain{
                                 }
                             break;
 
+                            case "getPriceHistory":
+                                try{
+                                    if(shared.isLogged.get()){
+                                        int month = Integer.parseInt(command[1]);
+                                        int year = Integer.parseInt(command[2]);
+                                        //uso la classe GsonCancelOrder solo per prelevare il campo month per evitare di creare una nuova classe Gson apposita
+                                        mesGson = new GsonMess<Values>("getPriceHistory", new GsonPriceHistory(month, year));
+                                        writer.println(gson.toJson(mesGson));
+                                    }
+                                    else{
+                                        printer.print("[Client] "+ Ansi.RED + "You must be logged in to get price history." + Ansi.RESET);
+                                        printer.prompt();
+                                    }
+                                }
+                                catch(NumberFormatException e){
+                                    printer.print("[Client] "+ Ansi.RED + "Invalid parameter for getPriceHistory. 'mese' must be an integer." + Ansi.RESET);
+                                    printer.prompt();
+                                    break;
+                                }
+                            break;
+
                             default:
                                 printer.print(Ansi.RED + "[Client] Invalid command. Type 'help()' to see the list of available commands." + Ansi.RESET);
                                 printer.prompt();
@@ -313,7 +334,7 @@ public class ClientMain{
             "insertLimitOrder\\s*\\(\\s*[a-zA-Z]+\\s*,\\s*\\d+\\s*,\\s*\\d+(\\.\\d+)?\\s*\\)$",
             "insertStopOrder\\s*\\(\\s*[a-zA-Z]+\\s*,\\s*\\d+\\s*,\\s*\\d+(\\.\\d+)?\\s*\\)$",
             "cancelOrder\\s*\\(\\s*\\d+\\s*\\)$",
-            "getPriceHistory\\s*\\(\\s*\\d+\\s*\\)$",
+            "getPriceHistory\\s*\\(\\s*\\d+\\s*,\\s*\\d+\\s*\\)$",
             "showOrderBook\\s*\\(\\s*\\)$",
             "showStopOrders\\s*\\(\\s*\\)$",
             "^help\\(\\)$"

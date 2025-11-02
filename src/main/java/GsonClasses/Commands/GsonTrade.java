@@ -1,6 +1,8 @@
 package GsonClasses.Commands;
 
-public class GsonTrade {
+import GsonClasses.Values;
+
+public class GsonTrade extends Values{
     private int orderId;
     private String type;
     private String orderType;
@@ -38,5 +40,9 @@ public class GsonTrade {
 
     public long getTimestamp(){
         return timestamp;
+    }
+
+    public String toString(){
+        return "GsonTrade [orderId=" + orderId + ", type=" + type + ", orderType=" + orderType + ", size=" + size + ", price=" + price + ", timestamp=" + timestamp + "]";
     }
 }

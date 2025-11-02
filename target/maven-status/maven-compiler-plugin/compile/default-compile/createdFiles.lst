@@ -6,6 +6,7 @@ Eseguibili/Server/Tupla.class
 Eseguibili/Main/ServerMain$1.class
 GsonClasses/GsonMess.class
 Eseguibili/Server/Worker.class
+GsonClasses/Commands/GsonPriceHistory.class
 GsonClasses/Responses/GsonResponse.class
 Eseguibili/Client/Receiver.class
 OrderBook/UserValue.class
@@ -21,6 +22,7 @@ Eseguibili/Main/ClientMain$SharedData.class
 Eseguibili/Server/TimeoutHandler.class
 Eseguibili/Main/ClientMain.class
 OrderBook/StopValue.class
+OrderBook/DayPriceData.class
 GsonClasses/Commands/GsonCancelOrder.class
 OrderBook/TradeNotifyUDP.class
 Eseguibili/Client/Printer.class

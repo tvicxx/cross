@@ -14,10 +14,12 @@
 /Users/tvicxx/Documents/SCUOLAZOO/Lab3/cross/src/main/java/Eseguibili/Server/Worker.java
 /Users/tvicxx/Documents/SCUOLAZOO/Lab3/cross/src/main/java/Eseguibili/Client/Printer.java
 /Users/tvicxx/Documents/SCUOLAZOO/Lab3/cross/src/main/java/OrderBook/OrderValue.java
+/Users/tvicxx/Documents/SCUOLAZOO/Lab3/cross/src/main/java/GsonClasses/Commands/GsonPriceHistory.java
 /Users/tvicxx/Documents/SCUOLAZOO/Lab3/cross/src/main/java/Eseguibili/Client/ReceiverUDP.java
 /Users/tvicxx/Documents/SCUOLAZOO/Lab3/cross/src/main/java/Varie/Ansi.java
 /Users/tvicxx/Documents/SCUOLAZOO/Lab3/cross/src/main/java/Eseguibili/Main/ClientMain.java
 /Users/tvicxx/Documents/SCUOLAZOO/Lab3/cross/src/main/java/Eseguibili/Server/SocketUDPValue.java
+/Users/tvicxx/Documents/SCUOLAZOO/Lab3/cross/src/main/java/OrderBook/DayPriceData.java
 /Users/tvicxx/Documents/SCUOLAZOO/Lab3/cross/src/main/java/GsonClasses/Responses/GsonResponse.java
 /Users/tvicxx/Documents/SCUOLAZOO/Lab3/cross/src/main/java/GsonClasses/Commands/GsonUser.java
 /Users/tvicxx/Documents/SCUOLAZOO/Lab3/cross/src/main/java/GsonClasses/Commands/GsonUpdateCredentials.java
