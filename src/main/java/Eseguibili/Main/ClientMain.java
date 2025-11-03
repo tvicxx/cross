@@ -314,6 +314,32 @@ public class ClientMain{
             printer.print(Ansi.RED + "[Client] Error loading configuration file: " + e.getMessage() + Ansi.RESET);
             System.exit(0);
         }
+
+        if(shared.isShuttingDown.get() == false){
+            try{
+                if(receiverTCP != null && receiverTCP.isAlive()){
+                    receiverTCP.interrupt();
+                }
+
+                if(receiverUDP != null && receiverUDP.isAlive()){
+                    receiverUDP.interrupt();
+                }
+
+                if(SocketTCP != null && !SocketTCP.isClosed()){
+                    SocketTCP.close();
+                }
+                if(writer != null){
+                    writer.flush();
+                    writer.close();
+                }
+                if(reader != null){
+                    reader.close();
+                }
+            }
+            catch(IOException e){
+                printer.print(Ansi.RED + "[Client] Error during closing connections: " + e.getMessage() + Ansi.RESET);
+            }
+        }
     }
 
     public static void loadConfig() throws FileNotFoundException, IOException{

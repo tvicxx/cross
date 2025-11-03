@@ -11,6 +11,12 @@ import Varie.*;
 
 public class Receiver implements Runnable{
 
+    private static String closingMessage =  "\n" + 
+                                "-----------------------------------------------------------------------\n" + 
+                                "Grazie per aver usato il nostro servizio di trading!\n" +
+                                "\n"+
+                                "Credits: Vicarelli Tommaso - Mat. 638912\n";
+
     public Socket socketTCP;
     public BufferedReader reader;
     public Printer printer;
@@ -37,14 +43,22 @@ public class Receiver implements Runnable{
                             printer.prompt();
                             continue;
                         }
-                        else
-                        printer.print("[Client] " + Ansi.GREEN + "Operation successful!" + Ansi.RESET);
+                        else if(jsonMess.get("type").getAsString().equals("logout")){
+                            printer.print(Ansi.BLUE + closingMessage + Ansi.RESET);
+                            shared.isClosed.set(true);
+                            System.exit(0);
+                        }
+                        else if(jsonMess.get("type").getAsString().equals("disconnection")){
+                            printer.print(Ansi.RED_BACKGROUND + "[Client] " + jsonMess.get("errorMessage").getAsString() + Ansi.RESET);
+                            printer.print(Ansi.BLUE + closingMessage + Ansi.RESET);
+                            shared.isClosed.set(true);
+                            System.exit(0);
+                        }
+                        else printer.print("[Client] " + Ansi.GREEN + "Operation successful!" + Ansi.RESET);
+
                         if(jsonMess.get("type").getAsString().equals("login")){
                             shared.isLogged.set(true);
                             shared.loginError.set(false);
-                        }
-                        else if(jsonMess.get("type").getAsString().equals("logout")){
-                            shared.isClosed.set(true);
                         }
                     }
                     else if(jsonMess.get("type").getAsString().equals("UDPport")){
@@ -57,6 +71,10 @@ public class Receiver implements Runnable{
                         if(jsonMess.get("type").getAsString().equals("login")){
                             shared.loginError.set(true);
                             shared.isLogged.set(false);
+                        }
+                        if(jsonMess.get("type").getAsString().equals("logout")){
+                            shared.isLogged.set(true);
+                            return;
                         }
                     }
                     printer.prompt();

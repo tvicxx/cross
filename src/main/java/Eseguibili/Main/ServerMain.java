@@ -66,6 +66,49 @@ public class ServerMain{
         try{
             serverSocket = new ServerSocket(TCPport);
 
+            //handler gestione terminazione server con CTRL+C
+            Runtime.getRuntime().addShutdownHook(new Thread(){
+                public void run(){
+                    System.out.println(Ansi.RED_BACKGROUND + "\n[--ServerMain--] Closing server..." + Ansi.RESET + "\n");
+                    try{
+                        if(serverSocket != null && !serverSocket.isClosed()){
+                            serverSocket.close();
+                        }
+                    }
+                    catch(IOException e){
+                        System.err.println("[--ServerMain--] Error during closing server socket: " + e.getMessage());
+                    }
+                    if(workerList.isEmpty() == false){
+                        for(Worker worker : workerList){
+                            worker.shutdown();
+                        }
+                    }
+
+                    threadPool.shutdown();
+
+                    //inserisce false nell'userMap per tutti gli utenti loggati
+                    for(Map.Entry<String, Tupla> entry : userMap.entrySet()){
+                        Tupla userDetails = entry.getValue();
+                        if((Boolean) userDetails.getIsLogged() == true){
+                            userDetails.setIsLogged(false);
+                        }
+                    }
+
+                    //controlla che il thread pool sia terminato, altrimenti forza la terminazione
+                    try{
+                        if(!threadPool.awaitTermination(5, TimeUnit.SECONDS)){
+                            threadPool.shutdownNow();
+                        }
+                    }
+                    catch(InterruptedException e){
+                        threadPool.shutdownNow();
+                    }
+
+                    System.out.println(Ansi.GREEN_BACKGROUND + "[--ServerMain--] Server closed successfully!" + Ansi.RESET);
+
+                }
+            });
+
             loadUserMap();
 
             loadOrderBook();

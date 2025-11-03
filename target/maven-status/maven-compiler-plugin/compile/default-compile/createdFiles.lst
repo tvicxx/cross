@@ -21,6 +21,7 @@ Varie/Ansi.class
 Eseguibili/Main/ClientMain$SharedData.class
 Eseguibili/Server/TimeoutHandler.class
 Eseguibili/Main/ClientMain.class
+Eseguibili/Main/ServerMain$2.class
 OrderBook/StopValue.class
 OrderBook/DayPriceData.class
 GsonClasses/Commands/GsonCancelOrder.class

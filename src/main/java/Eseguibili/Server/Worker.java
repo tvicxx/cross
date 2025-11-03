@@ -36,12 +36,12 @@ public class Worker implements Runnable {
     public GsonResponse response = new GsonResponse();
     public GsonResponseOrder responseOrder = new GsonResponseOrder();
 
-    public static AtomicBoolean running = new AtomicBoolean(true); //Usata per interrompere l'esecuzione del Worker
+    public static AtomicBoolean running = new AtomicBoolean(true); //usata per interrompere l'esecuzione del Worker
 
 
     public class SharedState{
-        public AtomicBoolean activeUser = new AtomicBoolean(true);      // Dice se un utente è attivo o meno
-        public AtomicBoolean runningHandler = new AtomicBoolean(true);  // Usata per interrompere l'esecuzione dell'Handler
+        public AtomicBoolean activeUser = new AtomicBoolean(true);      //dice se un utente è attivo o meno
+        public AtomicBoolean runningHandler = new AtomicBoolean(true);  //usata per interrompere l'esecuzione dell'Handler
         public volatile long lastActivity = System.currentTimeMillis();
     }
     
@@ -201,26 +201,31 @@ public class Worker implements Runnable {
                             break;
 
                             case "logout":
-                                if(onlineUser == null){
-                                    response.setResponse("updateCredentials",101, "user not logged in or other error cases");
-                                    response.sendMessage(gson,writer);
-                                }
-                                else{
-                                    System.out.printf(Ansi.RED + "[--WORKER %s--] " + Ansi.RESET + "Logging out user %s\n", Thread.currentThread().getName(), onlineUser);
+                                try{
+                                    if(onlineUser == null){
+                                        response.setResponse("logout",101, "user not logged in or other error cases");
+                                        response.sendMessage(gson,writer);
+                                    }   
+                                    else{
+                                        System.out.printf(Ansi.RED + "[--WORKER %s--] " + Ansi.RESET + "Logging out user %s\n", Thread.currentThread().getName(), onlineUser);
                                     
-                                    userMap.replace(onlineUser, new Tupla(password, false));
-                                    updateUserMap(userMap);
+                                        userMap.replace(onlineUser, new Tupla(password, false));
+                                        updateUserMap(userMap);
                                     
-                                    onlineUser = null;
+                                        onlineUser = null;
 
-                                    response.setResponse("updateCredentials",100, "OK");
-                                    response.sendMessage(gson,writer);
+                                        response.setResponse("logout",100, "OK");
+                                        response.sendMessage(gson,writer);
+                                    }
                                     state.activeUser.set(false);
 
                                     ServerMain.workerList.remove(this);
-
                                     receivedSocket.close();
                                     return;
+                                }
+                                catch(Exception e){
+                                    response.setResponse("logout",101, "user not logged in or other error cases");
+                                    response.sendMessage(gson,writer);
                                 }
                             break;
 
@@ -387,6 +392,25 @@ public class Worker implements Runnable {
                     }
                 }
                 //chiusura connessione e terminazione worker
+                state.runningHandler.set(false);
+
+                if(state.activeUser.get() == false){
+                    response.setResponse("disconnection", 100, "Closing connection due to inactivity");
+                }
+                if(running.get() == false){
+                    response.setResponse("disconnection", 100, "Closing connection due to server shutdown");
+                }
+
+                if(onlineUser != null){
+                    userMap.replace(onlineUser, new Tupla(password, false));
+                    updateUserMap(userMap);
+                }
+                response.sendMessage(gson,writer);
+
+                ServerMain.workerList.remove(this);
+                receivedSocket.close();
+
+                return;
             }
         }
         catch(IOException e){
@@ -418,5 +442,9 @@ public class Worker implements Runnable {
         } catch (Exception e){
             System.err.printf("[WORKER] updateJsonOrderBook %s \n",e.getMessage());
         }
+    }
+
+    public void shutdown(){
+        running.set(false);
     }
 }

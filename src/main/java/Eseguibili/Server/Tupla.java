@@ -15,4 +15,7 @@ public class Tupla{
     public Boolean getIsLogged(){
         return this.isLogged;
     }
+    public void setIsLogged(Boolean isLogged){
+        this.isLogged = isLogged;
+    }
 }
