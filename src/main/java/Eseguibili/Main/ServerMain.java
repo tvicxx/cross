@@ -116,7 +116,7 @@ public class ServerMain{
             System.out.println(Ansi.YELLOW + "[--ServerMain--] Server is starting on port " + TCPport + "..." + Ansi.RESET);
 
             //accept e asegna al thread pool
-            while (true){
+            while(serverSocket.isClosed() == false){
                 Socket receivedSocket = serverSocket.accept();
                 //System.out.println(Ansi.GREEN + "[--ServerMain--] New client connected: " + receivedSocket.getInetAddress().getHostAddress()+ Ansi.RESET);
                 Worker worker = new Worker(receivedSocket, userMap, orderBook, UDPport++, socketMapUDP, maxDelay);

@@ -399,7 +399,12 @@ public class Worker implements Runnable {
                     }
                     catch(SocketTimeoutException e){
                         if(state.activeUser.get() == false){
-                            System.out.printf(Ansi.BLUE + "[--WORKER %s--] " + Ansi.RESET + "Client inactive, closing connection\n", Thread.currentThread().getName());
+                            if(onlineUser != null){
+                                System.out.printf(Ansi.RED + "[--WORKER %s--] " + Ansi.RESET + "Logging out user %s due to inactivity\n", Thread.currentThread().getName(), onlineUser);
+                            }
+                            else{
+                                System.out.printf(Ansi.BLUE + "[--WORKER %s--] " + Ansi.RESET + "Client inactive, closing connection\n", Thread.currentThread().getName());
+                            }
                             break;
                         }
                         else continue;
