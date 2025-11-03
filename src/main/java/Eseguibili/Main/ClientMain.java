@@ -164,6 +164,14 @@ public class ClientMain{
                                     mesGson = new GsonMess<Values>("logout", null);
                                     writer.println(gson.toJson(mesGson));
                                     shared.isLogged.set(false);
+
+                                    try{
+                                        Thread.sleep(500); //attendo che il server processi il logout prima di chiudere la connessione UDP
+                                    }
+                                    catch(InterruptedException e){
+                                        Thread.currentThread().interrupt();
+                                    }
+                                    shared.isClosed.set(true);
                                 }
                                 else{
                                     printer.print("[Client] "+ Ansi.RED + "You are not logged in" + Ansi.RESET);
