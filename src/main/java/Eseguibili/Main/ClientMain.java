@@ -94,6 +94,18 @@ public class ClientMain{
                 receiverTCP = new Thread(new Receiver(SocketTCP, reader, printer, shared));
                 receiverTCP.start();
 
+                Runtime.getRuntime().addShutdownHook(new Thread(){
+                    public void run(){
+                        if(shared.isShuttingDown.get() == false){
+                            shared.isShuttingDown.set(true);
+                            mesGson = new GsonMess<Values>("logout", null);
+                            writer.println(gson.toJson(mesGson));
+
+                            closeConnection();
+                        }
+                    }
+                });
+
                 printer.print(welcome);
                 printer.prompt();
                 
@@ -316,29 +328,8 @@ public class ClientMain{
         }
 
         if(shared.isShuttingDown.get() == false){
-            try{
-                if(receiverTCP != null && receiverTCP.isAlive()){
-                    receiverTCP.interrupt();
-                }
-
-                if(receiverUDP != null && receiverUDP.isAlive()){
-                    receiverUDP.interrupt();
-                }
-
-                if(SocketTCP != null && !SocketTCP.isClosed()){
-                    SocketTCP.close();
-                }
-                if(writer != null){
-                    writer.flush();
-                    writer.close();
-                }
-                if(reader != null){
-                    reader.close();
-                }
-            }
-            catch(IOException e){
-                printer.print(Ansi.RED + "[Client] Error during closing connections: " + e.getMessage() + Ansi.RESET);
-            }
+            shared.isShuttingDown.set(true);
+            closeConnection();
         }
     }
 
@@ -373,5 +364,31 @@ public class ClientMain{
             }
         }
         return false;
+    }
+
+    public static void closeConnection(){
+        try{
+            if(receiverTCP != null && receiverTCP.isAlive()){
+                receiverTCP.interrupt();
+            }
+
+            if(receiverUDP != null && receiverUDP.isAlive()){
+                receiverUDP.interrupt();
+            }
+
+            if(SocketTCP != null && !SocketTCP.isClosed()){
+                SocketTCP.close();
+                }
+            if(writer != null){
+                writer.flush();
+                writer.close();
+            }
+            if(reader != null){
+                reader.close();
+            }
+        }
+        catch(IOException e){
+            System.err.println(Ansi.RED + "[Client] Error closing connection: " + e.getMessage() + Ansi.RESET);
+        }
     }
 }

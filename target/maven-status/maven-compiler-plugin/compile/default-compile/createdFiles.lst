@@ -27,5 +27,6 @@ OrderBook/DayPriceData.class
 GsonClasses/Commands/GsonCancelOrder.class
 OrderBook/TradeNotifyUDP.class
 Eseguibili/Client/Printer.class
+Eseguibili/Main/ClientMain$1.class
 GsonClasses/Commands/GsonMarketOrder.class
 Eseguibili/Client/ReceiverUDP.class
