@@ -70,14 +70,21 @@ public class ServerMain{
             Runtime.getRuntime().addShutdownHook(new Thread(){
                 public void run(){
                     System.out.println(Ansi.RED_BACKGROUND + "\n[--ServerMain--] Closing server..." + Ansi.RESET + "\n");
-
-                    orderBook.updateOrderBook();
-
+                    try{
+                        if(serverSocket != null && !serverSocket.isClosed()){
+                            serverSocket.close();
+                        }
+                    }
+                    catch(IOException e){
+                        System.err.println("[--ServerMain--] Error during closing server socket: " + e.getMessage());
+                    }
                     if(workerList.isEmpty() == false){
                         for(Worker worker : workerList){
                             worker.shutdown();
                         }
                     }
+
+                    threadPool.shutdown();
 
                     //inserisce false nell'userMap per tutti gli utenti loggati
                     for(Map.Entry<String, Tupla> entry : userMap.entrySet()){
@@ -87,8 +94,6 @@ public class ServerMain{
                         }
                     }
 
-                    threadPool.shutdown();
-
                     //controlla che il thread pool sia terminato, altrimenti forza la terminazione
                     try{
                         if(!threadPool.awaitTermination(5, TimeUnit.SECONDS)){
@@ -97,15 +102,6 @@ public class ServerMain{
                     }
                     catch(InterruptedException e){
                         threadPool.shutdownNow();
-                    }
-
-                    try{
-                        if(serverSocket != null && !serverSocket.isClosed()){
-                            serverSocket.close();
-                        }
-                    }
-                    catch(IOException e){
-                        System.err.println("[--ServerMain--] Error during closing server socket: " + e.getMessage());
                     }
 
                     System.out.println(Ansi.GREEN_BACKGROUND + "[--ServerMain--] Server closed successfully!" + Ansi.RESET);

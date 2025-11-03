@@ -60,7 +60,7 @@ public class Worker implements Runnable {
         SharedState state = new SharedState();
 
         try(DatagramSocket UDPsocket = new DatagramSocket(UDPport)){
-            receivedSocket.setSoTimeout(60000);
+            receivedSocket.setSoTimeout(5000);
 
             try(BufferedReader reader = new BufferedReader(new InputStreamReader(receivedSocket.getInputStream())); PrintWriter writer = new PrintWriter(receivedSocket.getOutputStream(), true)){
 
@@ -211,13 +211,11 @@ public class Worker implements Runnable {
                                     
                                         userMap.replace(onlineUser, new Tupla(password, false));
                                         updateUserMap(userMap);
-
-                                        socketMapUDP.remove(onlineUser);
+                                    
+                                        onlineUser = null;
 
                                         response.setResponse("logout",100, "OK");
                                         response.sendMessage(gson,writer);
-
-                                        onlineUser = null;
                                     }
                                     state.activeUser.set(false);
 
@@ -365,7 +363,7 @@ public class Worker implements Runnable {
                                     int month = valuesPH.getMonth();
                                     int year = valuesPH.getYear();
 
-                                    if(month < 1 || month > 12 || year < 1970){
+                                    if(month < 1 || month > 12 && year < 1970){
                                         response.setResponse("getPriceHistory", 101, "invalid month or year");
                                         response.sendMessage(gson, writer);
                                         break;
