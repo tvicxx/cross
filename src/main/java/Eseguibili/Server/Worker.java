@@ -12,6 +12,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
+
 import GsonClasses.Commands.*;
 import GsonClasses.Responses.*;
 import OrderBook.*;
@@ -24,7 +25,8 @@ public class Worker implements Runnable {
     public ConcurrentHashMap <String, Tupla> userMap;
     public ConcurrentSkipListMap <String, SocketUDPValue> socketMapUDP;
     public OrderBook orderBook;
-    public TimeoutHandler timeout;
+    public TimeoutHandler handlerTimeout;
+    public long maxDelay;
 
     public int UDPport;
 
@@ -37,20 +39,20 @@ public class Worker implements Runnable {
     public GsonResponseOrder responseOrder = new GsonResponseOrder();
 
     public static AtomicBoolean running = new AtomicBoolean(true); //usata per interrompere l'esecuzione del Worker
-
-
-    public class SharedState{
-        public AtomicBoolean activeUser = new AtomicBoolean(true);      //dice se un utente è attivo o meno
-        public AtomicBoolean runningHandler = new AtomicBoolean(true);  //usata per interrompere l'esecuzione dell'Handler
-        public volatile long lastActivity = System.currentTimeMillis();
-    }
     
-    public Worker(Socket receivedSocket, ConcurrentHashMap <String, Tupla> userMap, OrderBook orderBook, int UDPport, ConcurrentSkipListMap <String, SocketUDPValue> socketMapUDP){
+    public Worker(Socket receivedSocket, ConcurrentHashMap <String, Tupla> userMap, OrderBook orderBook, int UDPport, ConcurrentSkipListMap <String, SocketUDPValue> socketMapUDP, long maxDelay){
         this.receivedSocket = receivedSocket;
         this.userMap = userMap;
         this.orderBook = orderBook;
         this.UDPport = UDPport;
         this.socketMapUDP = socketMapUDP;
+        this.maxDelay = maxDelay;
+    }
+
+    public class SharedState{
+        public AtomicBoolean activeUser = new AtomicBoolean(true);      //dice se un utente è attivo o meno
+        public AtomicBoolean runningHandler = new AtomicBoolean(true);  //usata per interrompere l'esecuzione dell'handlerTimeout
+        public volatile long lastActivity = System.currentTimeMillis();
     }
 
     @Override
@@ -58,6 +60,11 @@ public class Worker implements Runnable {
         System.out.printf(Ansi.BLUE + "[--WORKER %s--] " + Ansi.RESET + "serving a client\n", Thread.currentThread().getName());
 
         SharedState state = new SharedState();
+
+        //thread di gestione timeout inattività client
+        handlerTimeout = new TimeoutHandler(state, maxDelay, Thread.currentThread());
+        Thread timeout = new Thread(handlerTimeout);
+        timeout.start();
 
         try(DatagramSocket UDPsocket = new DatagramSocket(UDPport)){
             receivedSocket.setSoTimeout(5000);
@@ -70,6 +77,8 @@ public class Worker implements Runnable {
                 while(state.activeUser.get() && running.get()){
                     try{
                         String message = reader.readLine();
+
+                        handlerTimeout.setTimeStamp(System.currentTimeMillis());
 
                         //System.out.printf(Ansi.BLUE + "[--WORKER %s--] " + Ansi.RESET + "Received message: %s\n", Thread.currentThread().getName(), message);
 
@@ -132,6 +141,8 @@ public class Worker implements Runnable {
                                         onlineUser = username;
                                         userMap.replace(username, new Tupla(password, true));
                                         updateUserMap(userMap);
+
+                                        handlerTimeout.setUser(onlineUser);
 
                                         response.setResponse("login",100,"OK");
                                         response.sendMessage(gson,writer);
@@ -218,6 +229,9 @@ public class Worker implements Runnable {
                                         response.sendMessage(gson,writer);
                                     }
                                     state.activeUser.set(false);
+                                    
+                                    state.runningHandler.set(false);
+                                    timeout.join();
 
                                     ServerMain.workerList.remove(this);
                                     receivedSocket.close();
@@ -393,6 +407,7 @@ public class Worker implements Runnable {
                 }
                 //chiusura connessione e terminazione worker
                 state.runningHandler.set(false);
+                timeout.join();
 
                 if(state.activeUser.get() == false){
                     response.setResponse("disconnection", 100, "Closing connection due to inactivity");
@@ -411,6 +426,9 @@ public class Worker implements Runnable {
                 receivedSocket.close();
 
                 return;
+            }
+            catch(Exception e) {
+                System.out.printf(Ansi.RED + "[--WORKER %s--] " + Ansi.RESET + "Error in worker: %s\n", Thread.currentThread().getName(), e.getMessage());
             }
         }
         catch(IOException e){

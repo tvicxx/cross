@@ -21,7 +21,7 @@ public class ServerMain{
     public static final String configFile = "src/main/java/server.properties";
     public static int TCPport;
     public static int UDPport;
-    public static int maxDelay;
+    public static long maxDelay;
     public static String hostname;
     public static String userMapPath;
     public static String orderBookPath;
@@ -119,7 +119,7 @@ public class ServerMain{
             while (true){
                 Socket receivedSocket = serverSocket.accept();
                 //System.out.println(Ansi.GREEN + "[--ServerMain--] New client connected: " + receivedSocket.getInetAddress().getHostAddress()+ Ansi.RESET);
-                Worker worker = new Worker(receivedSocket, userMap, orderBook, UDPport++, socketMapUDP);
+                Worker worker = new Worker(receivedSocket, userMap, orderBook, UDPport++, socketMapUDP, maxDelay);
                 workerList.add(worker);
                 threadPool.execute(worker);
             }
