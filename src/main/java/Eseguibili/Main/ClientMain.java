@@ -314,32 +314,30 @@ public class ClientMain{
             printer.print(Ansi.RED + "[Client] Error loading configuration file: " + e.getMessage() + Ansi.RESET);
             System.exit(0);
         }
+                
+        if(receiverTCP != null && receiverTCP.isAlive()) receiverTCP.interrupt();
 
-        if(shared.isShuttingDown.get() == false){
-            try{
-                if(receiverTCP != null && receiverTCP.isAlive()){
-                    receiverTCP.interrupt();
-                }
+        if(receiverUDP != null && receiverUDP.isAlive()) receiverUDP.interrupt();
 
-                if(receiverUDP != null && receiverUDP.isAlive()){
-                    receiverUDP.interrupt();
-                }
-
-                if(SocketTCP != null && !SocketTCP.isClosed()){
-                    SocketTCP.close();
-                }
-                if(writer != null){
-                    writer.flush();
-                    writer.close();
-                }
-                if(reader != null){
-                    reader.close();
-                }
-            }
-            catch(IOException e){
-                printer.print(Ansi.RED + "[Client] Error during closing connections: " + e.getMessage() + Ansi.RESET);
-            }
+        try{
+            if(receiverTCP != null) receiverTCP.join(500);
+            if(receiverUDP != null) receiverUDP.join(500);
         }
+        catch(InterruptedException e){
+            Thread.currentThread().interrupt();
+        }
+
+        try{
+            if(reader != null) reader.close();
+            if(writer != null) writer.close();
+            if(SocketTCP != null && !SocketTCP.isClosed()) SocketTCP.close();
+        }
+        catch(IOException e){
+            printer.print(Ansi.RED + "[Client] Error closing resources: " + e.getMessage() + Ansi.RESET);
+        }
+
+        scannerInput.close();
+        System.exit(0);
     }
 
     public static void loadConfig() throws FileNotFoundException, IOException{

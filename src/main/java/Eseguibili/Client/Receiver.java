@@ -95,5 +95,8 @@ public class Receiver implements Runnable{
             printer.print(Ansi.RED + "[Receiver] Error: " + e.getMessage() + Ansi.RESET);
             shared.isClosed.set(true);
         }
+        finally{
+            shared.isClosed.set(true);
+        }
     }
 }

@@ -211,11 +211,13 @@ public class Worker implements Runnable {
                                     
                                         userMap.replace(onlineUser, new Tupla(password, false));
                                         updateUserMap(userMap);
-                                    
-                                        onlineUser = null;
+
+                                        socketMapUDP.remove(onlineUser);
 
                                         response.setResponse("logout",100, "OK");
                                         response.sendMessage(gson,writer);
+
+                                        onlineUser = null;
                                     }
                                     state.activeUser.set(false);
 
