@@ -115,7 +115,7 @@ public class OrderBook {
                 return orderId;
             }
 
-        System.out.printf(Ansi.RED_BACKGROUND + "Inserting limit ask order: size %d, price %d, user %s\n" + Ansi.RESET, size, price, user);
+        //System.out.printf(Ansi.RED_BACKGROUND + "Inserting limit ask order: size %d, price %d, user %s\n" + Ansi.RESET, size, price, user);
         }
         if(remaining > 0){
             //inserisco l'ordine nella orderbook
@@ -567,5 +567,63 @@ public class OrderBook {
         }
 
         return priceHistory.toString();
+    }
+
+    public synchronized String showOrderBook(){
+        StringBuilder obString = new StringBuilder();
+        obString.append("\n" + Ansi.YELLOW_BACKGROUND + "Current Order Book:" + Ansi.RESET + "\n");
+        obString.append(Ansi.RED_BACKGROUND + "   ASK ORDERS   " + Ansi.RESET + "\n");
+        obString.append(Ansi.WHITE_BACKGROUND + "Price |  Size  " + Ansi.RESET + "\n");
+        obString.append("----------------\n");
+        int bool = 0;
+        for(Map.Entry<Integer, OrderValue> entry : askMap.entrySet()){
+            int price = entry.getKey();
+            OrderValue ov = entry.getValue();
+            if(bool == 0){
+                obString.append(String.format(Ansi.BLACK_BACKGROUND + "%5d | %5d " + Ansi.RESET+ "\n", price, ov.size));
+                bool = 1;
+            }
+            else {
+                obString.append(String.format(Ansi.WHITE_BACKGROUND + "%5d | %5d " + Ansi.RESET+ "\n", price, ov.size));
+                bool = 0;
+            }
+        }
+        obString.append("----------------\n");
+        if(spread < 0) obString.append(String.format(Ansi.WHITE_BACKGROUND + "Current Spread: " + Ansi.RED_BACKGROUND + "%d" + Ansi.RESET + "\n", spread));
+        else obString.append(String.format(Ansi.WHITE_BACKGROUND + "Current Spread: " + Ansi.GREEN_BACKGROUND + "%d" + Ansi.RESET + "\n", spread));
+        obString.append("----------------\n");
+        obString.append(Ansi.GREEN_BACKGROUND + "   BID ORDERS   " + Ansi.RESET + "\n");
+        obString.append(Ansi.WHITE_BACKGROUND + "Price |  Size  " + Ansi.RESET + "\n");
+        obString.append("----------------\n");
+        bool = 0;
+        for(Map.Entry<Integer, OrderValue> entry : bidMap.entrySet()){
+            int price = entry.getKey();
+            OrderValue ov = entry.getValue();
+            if(bool == 0){
+                obString.append(String.format(Ansi.BLACK_BACKGROUND + "%5d | %5d " + Ansi.RESET+ "\n", price, ov.size));
+                bool = 1;
+            }
+            else{
+                obString.append(String.format(Ansi.WHITE_BACKGROUND + "%5d | %5d " + Ansi.RESET+ "\n", price, ov.size));
+                bool = 0;
+            }
+        }
+        obString.append("----------------\n");
+        obString.append(Ansi.BLUE_BACKGROUND + "   STOP ORDERS   " + Ansi.RESET + "\n");
+        obString.append(Ansi.WHITE_BACKGROUND + "Type | Price | Size | User " + Ansi.RESET + "\n");
+        obString.append("--------------------------------\n");
+        bool = 0;
+        for(StopValue sv : stopQueue){
+            if(bool == 0){
+                obString.append(String.format(Ansi.BLACK_BACKGROUND + "%4s | %5d | %4d | %s " + Ansi.RESET+ "\n", sv.type.toUpperCase(), sv.price, sv.size, sv.user));
+                bool = 1;
+            }
+            else{
+                obString.append(String.format(Ansi.WHITE_BACKGROUND + "%4s | %5d | %4d | %s " + Ansi.RESET+ "\n", sv.type.toUpperCase(), sv.price, sv.size, sv.user));
+                bool = 0;
+            }
+        }
+        obString.append("--------------------------------\n");
+        return obString.toString();
     }
 }

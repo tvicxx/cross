@@ -368,6 +368,23 @@ public class Worker implements Runnable {
                                 }
                             break;
 
+                            case "showOrderBook":
+                                try{
+                                    if(onlineUser == null){
+                                        response.setResponse("showOrderBook", 101, "user not logged in");
+                                        response.sendMessage(gson, writer);
+                                        break;
+                                    }
+                                    String orderBookString = orderBook.showOrderBook();
+
+                                    response.setResponse("showOrderBook", 100, orderBookString);
+                                    response.sendMessage(gson, writer);
+                                }
+                                catch(Exception e){
+                                    System.out.printf(Ansi.RED + "[--WORKER %s--] " + Ansi.RESET + "Error in showOrderBook\n", Thread.currentThread().getName());
+                                }
+                            break;
+
                             case "getPriceHistory":
                                 try{
                                     objValues = obj.getAsJsonObject("values");

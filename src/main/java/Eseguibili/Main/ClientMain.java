@@ -283,6 +283,17 @@ public class ClientMain{
                                 }
                             break;
 
+                            case "showOrderBook":
+                                if(shared.isLogged.get()){
+                                    mesGson = new GsonMess<Values>("showOrderBook", null);
+                                    writer.println(gson.toJson(mesGson));
+                                }
+                                else{
+                                    printer.print("[Client] "+ Ansi.RED + "You must be logged in to show the order book." + Ansi.RESET);
+                                    printer.prompt();
+                                }
+                            break;
+
                             case "getPriceHistory":
                                 try{
                                     if(shared.isLogged.get()){
@@ -354,7 +365,6 @@ public class ClientMain{
             "cancelOrder\\s*\\(\\s*\\d+\\s*\\)$",
             "getPriceHistory\\s*\\(\\s*\\d+\\s*,\\s*\\d+\\s*\\)$",
             "showOrderBook\\s*\\(\\s*\\)$",
-            "showStopOrders\\s*\\(\\s*\\)$",
             "^help\\(\\)$"
         };
         

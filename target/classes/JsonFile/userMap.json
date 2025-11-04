@@ -1,0 +1,34 @@
+{
+  "elia": {
+    "password": "zanca",
+    "isLogged": false
+  },
+  "laila": {
+    "password": "vince",
+    "isLogged": false
+  },
+  "pinco": {
+    "password": "pallo",
+    "isLogged": false
+  },
+  "erne": {
+    "password": "fefe",
+    "isLogged": false
+  },
+  "pippo": {
+    "password": "pluto",
+    "isLogged": false
+  },
+  "tommaso": {
+    "password": "psw",
+    "isLogged": false
+  },
+  "loren": {
+    "password": "cate",
+    "isLogged": false
+  },
+  "isma": {
+    "password": "dade",
+    "isLogged": false
+  }
+}

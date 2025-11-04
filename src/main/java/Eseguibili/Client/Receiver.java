@@ -43,6 +43,11 @@ public class Receiver implements Runnable{
                             printer.prompt();
                             continue;
                         }
+                        else if(jsonMess.get("type").getAsString().equals("showOrderBook")){
+                            printer.print(jsonMess.get("errorMessage").getAsString());
+                            printer.prompt();
+                            continue;
+                        }
                         else if(jsonMess.get("type").getAsString().equals("logout")){
                             printer.print(Ansi.BLUE + closingMessage + Ansi.RESET);
                             shared.isClosed.set(true);
