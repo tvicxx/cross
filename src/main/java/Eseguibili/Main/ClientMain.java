@@ -46,7 +46,7 @@ public class ClientMain{
                 "  - insertMarketOrder(tipo, dimensione) : send a MarketOrder type buy/sell order \n" +
                 "  - insertStopOrder(tipo, dimensione, stopPrice) : send a StopOrder type sell/buy order \n" +
                 "  - cancelOrder(orderId) : cancels an existing order \n" +
-                "  - getPriceHistory(mese, anno) : retrieves the asset price history of the month \n" +
+                "  - getPriceHistory(mese) : retrieves the asset price history of the month in format MMYYYY \n" +
                 "  - help() : displays this help message \n" +
                 Ansi.RESET;
 
@@ -297,10 +297,8 @@ public class ClientMain{
                             case "getPriceHistory":
                                 try{
                                     if(shared.isLogged.get()){
-                                        int month = Integer.parseInt(command[1]);
-                                        int year = Integer.parseInt(command[2]);
-                                        //uso la classe GsonCancelOrder solo per prelevare il campo month per evitare di creare una nuova classe Gson apposita
-                                        mesGson = new GsonMess<Values>("getPriceHistory", new GsonPriceHistory(month, year));
+                                        String month = command[1];
+                                        mesGson = new GsonMess<Values>("getPriceHistory", new GsonPriceHistory(month));
                                         writer.println(gson.toJson(mesGson));
                                     }
                                     else{
@@ -363,7 +361,7 @@ public class ClientMain{
             "insertLimitOrder\\s*\\(\\s*[a-zA-Z]+\\s*,\\s*\\d+\\s*,\\s*\\d+(\\.\\d+)?\\s*\\)$",
             "insertStopOrder\\s*\\(\\s*[a-zA-Z]+\\s*,\\s*\\d+\\s*,\\s*\\d+(\\.\\d+)?\\s*\\)$",
             "cancelOrder\\s*\\(\\s*\\d+\\s*\\)$",
-            "getPriceHistory\\s*\\(\\s*\\d+\\s*,\\s*\\d+\\s*\\)$",
+            "getPriceHistory\\s*\\(\\s*[0-9]+\\s*\\)$",
             "showOrderBook\\s*\\(\\s*\\)$",
             "^help\\(\\)$"
         };

@@ -389,10 +389,12 @@ public class Worker implements Runnable {
                                 try{
                                     objValues = obj.getAsJsonObject("values");
 
-                                    //uso la classe GsonCancelOrder solo per prelevare il campo month per evitare di creare una nuova classe Gson apposita
                                     GsonPriceHistory valuesPH = new Gson().fromJson(objValues, GsonPriceHistory.class);
-                                    int month = valuesPH.getMonth();
-                                    int year = valuesPH.getYear();
+                                    String date = valuesPH.getMonth();
+                                    //formato date: MMYYYY
+                                    int month = Integer.parseInt(date.substring(0, 2));
+                                    int year = Integer.parseInt(date.substring(2, 6));
+                                    System.out.printf(Ansi.YELLOW + "[--WORKER %s--] " + Ansi.RESET + "Getting price history for month %d and year %d\n", Thread.currentThread().getName(), month, year);
 
                                     if(month < 1 || month > 12 && year < 1970){
                                         response.setResponse("getPriceHistory", 101, "invalid month or year");
