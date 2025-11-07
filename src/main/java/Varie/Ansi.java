@@ -1,5 +1,6 @@
 package Varie;
 
+//classe per i codici ANSI per la colorazione/personalizzazione del testo in console
 public class Ansi {
     public static final String RESET = "\u001B[0m";
     public static final String BLACK = "\u001B[30m";

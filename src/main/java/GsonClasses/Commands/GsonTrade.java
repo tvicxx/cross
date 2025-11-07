@@ -2,6 +2,7 @@ package GsonClasses.Commands;
 
 import GsonClasses.Values;
 
+//classe che rappresenta un trade effettuato in formato Gson che verrà aggiunto allo storicoOrdini o per la lettura di quest'ultimo in caso di richiesta statistiche da parte dell'utente
 public class GsonTrade extends Values{
     private int orderId;
     private String type;

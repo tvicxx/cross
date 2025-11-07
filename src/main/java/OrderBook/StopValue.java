@@ -1,5 +1,6 @@
 package OrderBook;
 
+//classe che rappresenta il valore di uno stop order
 public class StopValue {
     public int orderId;
     public String user;

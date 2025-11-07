@@ -2,6 +2,7 @@ package GsonClasses.Commands;
 
 import GsonClasses.Values;
 
+//classe che rappresenta una richiesta di aggiornamento delle credenziali in formato Gson
 public class GsonUpdateCredentials extends Values {
     public String username;
     public String old_password;

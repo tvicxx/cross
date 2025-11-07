@@ -4,6 +4,7 @@ import java.io.PrintWriter;
 
 import com.google.gson.Gson;
 
+//classe che rappresenta una risposta generica in formato Gson
 public class GsonResponse{
     public String type;
     public int response;

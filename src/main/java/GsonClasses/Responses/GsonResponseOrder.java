@@ -4,6 +4,7 @@ import java.io.PrintWriter;
 
 import com.google.gson.Gson;
 
+//classe che rappresenta una risposta di un ordine in formato Gson
 public class GsonResponseOrder{
     public int orderId;
 

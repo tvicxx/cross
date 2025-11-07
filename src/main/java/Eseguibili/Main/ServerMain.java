@@ -38,22 +38,9 @@ public class ServerMain{
     public static ConcurrentLinkedQueue<StopValue> stopQueue;
     public static ConcurrentSkipListMap<Integer,OrderValue> bidMap = new ConcurrentSkipListMap<>(Collections.reverseOrder());
     public static OrderBook orderBook = new OrderBook(askMap, 0, new ConcurrentLinkedQueue<>(), bidMap, 0);
-
-    public static void loadConfig() throws FileNotFoundException, IOException{
-        InputStream input = new FileInputStream(configFile);
-        Properties properties = new Properties();
-        properties.load(input);
-        TCPport = Integer.parseInt(properties.getProperty("TCPport"));
-        UDPport = Integer.parseInt(properties.getProperty("UDPport"));
-        maxDelay = Integer.parseInt(properties.getProperty("maxDelay"));
-        hostname = properties.getProperty("hostname");
-        userMapPath = properties.getProperty("userMapPath");
-        orderBookPath = properties.getProperty("orderBookPath");
-        input.close();
-    }
     
     public static void main(String[] args) {
-        
+        //caricamento dati dal file di configurazione server.properties
         try{
             System.out.println("[--ServerMain--] Loading configuration...");
             loadConfig();
@@ -64,6 +51,7 @@ public class ServerMain{
         }
 
         try{
+            //creazione server socket TCP
             serverSocket = new ServerSocket(TCPport);
 
             //handler gestione terminazione server con CTRL+C
@@ -78,12 +66,14 @@ public class ServerMain{
                     catch(IOException e){
                         System.err.println("[--ServerMain--] Error during closing server socket: " + e.getMessage());
                     }
+                    //termina tutti i worker attivi se presenti
                     if(workerList.isEmpty() == false){
                         for(Worker worker : workerList){
                             worker.shutdown();
                         }
                     }
 
+                    //termina il thread pool
                     threadPool.shutdown();
 
                     //inserisce false nell'userMap per tutti gli utenti loggati
@@ -109,18 +99,20 @@ public class ServerMain{
                 }
             });
 
+            //caricamento userMap e orderBook da file JSON
             loadUserMap();
-
             loadOrderBook();
 
             System.out.println(Ansi.YELLOW + "[--ServerMain--] Server is starting on port " + TCPport + "..." + Ansi.RESET);
 
-            //accept e asegna al thread pool
+            //accept e asegnazione al thread pool
             while(serverSocket.isClosed() == false){
                 Socket receivedSocket = serverSocket.accept();
-                //System.out.println(Ansi.GREEN + "[--ServerMain--] New client connected: " + receivedSocket.getInetAddress().getHostAddress()+ Ansi.RESET);
+                //creazione worker per la gestione del client connesso
                 Worker worker = new Worker(receivedSocket, userMap, orderBook, UDPport++, socketMapUDP, maxDelay);
+                //aggiunta worker alla lista dei worker attivi
                 workerList.add(worker);
+                //esecuzione worker nel thread pool
                 threadPool.execute(worker);
             }
         }
@@ -130,14 +122,33 @@ public class ServerMain{
 
     }
 
-    public static void loadUserMap() {
+    //metodo per il caricamento del file di configurazione server.properties
+    public static void loadConfig() throws FileNotFoundException, IOException{
+        InputStream input = new FileInputStream(configFile);
+        Properties properties = new Properties();
+        properties.load(input);
+        TCPport = Integer.parseInt(properties.getProperty("TCPport"));
+        UDPport = Integer.parseInt(properties.getProperty("UDPport"));
+        maxDelay = Integer.parseInt(properties.getProperty("maxDelay"));
+        hostname = properties.getProperty("hostname");
+        userMapPath = properties.getProperty("userMapPath");
+        orderBookPath = properties.getProperty("orderBookPath");
+        input.close();
+    }
+
+    //metodo per il caricamento della userMap da file JSON
+    public static void loadUserMap(){
         try(JsonReader reader = new JsonReader(new FileReader(userMapPath))){
 
             //lettura dal file JSON userMap.json
             Gson gson = new Gson();
+            //definizione del tipo di struttura dati da leggere
+            //sfrutto la classe Tupla appositamente creata per memorizzare password e stato di login
             Type mapType = new TypeToken<ConcurrentHashMap<String, Tupla>>(){}.getType();
             userMap = gson.fromJson(reader, mapType);
+            
             /* 
+            //stampa userMap caricata
             for (Map.Entry<String,Tupla> entry : userMap.entrySet()){
                 String username = entry.getKey();
                 Tupla userDetails = entry.getValue();
@@ -147,6 +158,7 @@ public class ServerMain{
                 System.out.println("Username: " + username + ", Password: " + password + ", isLogged: " + isLogged);
             }
             */
+
             System.out.println("[--ServerMain--] UserMap loaded successfully!");
         }
         catch(EOFException e){
@@ -159,15 +171,16 @@ public class ServerMain{
         }
     }
 
+    //metodo per il caricamento dell'orderBook da file JSON
     public static void loadOrderBook(){
+        //lettura dal file JSON orderBook.json
         try(JsonReader reader = new JsonReader(new FileReader(orderBookPath))){
             Gson gson = new Gson();
+            //inizio lettura orderBook
             reader.beginObject();
             while(reader.hasNext()){
                 String name = reader.nextName();
-
-                //System.out.println("[--ServerMain--] Loading " + name + "...");
-
+                //lettura askMap
                 if(name.equals("askMap")){
                     reader.beginObject();
                     ConcurrentSkipListMap<Integer, OrderValue> askMap = orderBook.askMap;
@@ -179,35 +192,36 @@ public class ServerMain{
                     }
                     reader.endObject();
                 }
+                //lettura spread
                 else if(name.equals("spread")){
                     orderBook.spread = reader.nextInt();
-                    //System.out.println("[--ServerMain--] spread loaded: " + orderBook.spread);
                 }
+                //lettura bidMap
                 else if(name.equals("bidMap")){
                     reader.beginObject();
+                    //uso una ConcurrentSkipListMap con ordine decrescente per la bidMap, sfruttando la classe OrderValue per memorizzare le informazioni sugli ordini divisi per prezzo
                     ConcurrentSkipListMap<Integer, OrderValue> bidMap = orderBook.bidMap;
-                    //System.out.println("[--ServerMain--] Reading bidMap...");
 
                     while(reader.hasNext()){
                         int price = Integer.parseInt(reader.nextName());
                         OrderValue val = gson.fromJson(reader, OrderValue.class);
                         bidMap.put(price, val);
                     }
-                    //System.out.println("[--ServerMain--] bidMap loaded: " + bidMap.toString());
                     reader.endObject();
                 }
+                //lettura lastId
                 else if(name.equals("lastId")){
                     orderBook.lastId = reader.nextInt();
-                    //System.out.println("[--ServerMain--] lastId loaded: " + orderBook.lastId);
                 }
                 else{
                     reader.skipValue();
                 }
+                //non leggo stopOrder perche' sono dati non persistenti ma lo inizializzo vuoto
             }
             reader.endObject();
             System.out.println("[--ServerMain--] OrderBook loaded successfully!");
             
-            //non leggo stopOrder perche' sono dati non persistenti ma lo inizializzo vuoto
+            //inizializzazione stopQueue vuota
             orderBook.stopQueue = new ConcurrentLinkedQueue<>();
         }
         catch(EOFException e){

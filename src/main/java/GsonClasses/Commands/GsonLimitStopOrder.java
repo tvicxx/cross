@@ -2,6 +2,7 @@ package GsonClasses.Commands;
 
 import GsonClasses.Values;
 
+//classe per la serializzazione della richiesta di un ordine limit o stop
 public class GsonLimitStopOrder extends Values{
     public String type;
     public int size;

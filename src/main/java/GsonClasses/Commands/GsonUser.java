@@ -2,6 +2,7 @@ package GsonClasses.Commands;
 
 import GsonClasses.Values;
 
+//classe che rappresenta un utente in formato Gson, usata per il login o la registrazione
 public class GsonUser extends Values {
     public String username;
     public String password;

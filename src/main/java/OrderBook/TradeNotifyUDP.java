@@ -1,5 +1,6 @@
 package OrderBook;
 
+//classe che rappresenta una notifica di trade inviata tramite UDP al client quando un suo ordine viene eseguito
 public class TradeNotifyUDP {
     public int orderId;
     public String type;

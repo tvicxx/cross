@@ -1,5 +1,6 @@
 package Eseguibili.Server;
 
+//classe Tupla per memorizzare la password e lo stato di login di un utente
 public class Tupla{
     public String password;
     public Boolean isLogged;

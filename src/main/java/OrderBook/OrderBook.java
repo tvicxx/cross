@@ -29,16 +29,17 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.stream.JsonReader;
 
+//classe che rappresenta l'order book
 public class OrderBook {
-    public ConcurrentSkipListMap<Integer,OrderValue> askMap;
-    public int spread;
-    public ConcurrentLinkedQueue<StopValue> stopQueue;
-    public ConcurrentSkipListMap<Integer,OrderValue> bidMap;
-    public int lastId;
+    public ConcurrentSkipListMap<Integer,OrderValue> askMap; //contiene i limitOrder di tipo ask
+    public int spread; //differenza tra il miglior ask e il miglior bid
+    public ConcurrentLinkedQueue<StopValue> stopQueue; //contiene gli ordini di tipo stopOrder
+    public ConcurrentSkipListMap<Integer,OrderValue> bidMap; //contiene i limitOrder di tipo bid
+    public int lastId; //ultimo id ordine assegnato
 
     public static final String configFile = "src/main/java/server.properties";
-    public static String orderBookPath;
-    public static String storicoOrdiniPath;
+    public static String orderBookPath; //percorso del file orderBook.json
+    public static String storicoOrdiniPath; //percorso del file storicoOrdini.json
 
     public OrderBook(ConcurrentSkipListMap<Integer,OrderValue> askMap, int spread, ConcurrentLinkedQueue<StopValue> stopQueue, ConcurrentSkipListMap<Integer,OrderValue> bidMap, int lastId){
         this.askMap = askMap;
@@ -47,6 +48,7 @@ public class OrderBook {
         this.bidMap = bidMap;
         this.lastId = lastId;
 
+        //quando la struttura dati viene creata, carico il file di configurazione
         try{
             System.out.println("[--ServerMain--] Loading configuration...");
             loadConfig();
@@ -57,6 +59,7 @@ public class OrderBook {
         }
     }
 
+    //metodo per caricare il file di configurazione, in particolare i percorsi dei file json
     public static void loadConfig() throws FileNotFoundException, IOException{
         InputStream input = new FileInputStream(configFile);
         Properties properties = new Properties();
@@ -66,7 +69,10 @@ public class OrderBook {
         input.close();
     }
 
+    //metodo per aggiornare il file orderBook.json
     public synchronized void updateOrderBook(){
+
+        //aggiorno lo spread
         if(askMap.isEmpty() == false && bidMap.isEmpty() == false){
             spread = askMap.firstKey() - bidMap.firstKey();
         }
@@ -89,12 +95,13 @@ public class OrderBook {
         orderBookData.put("spread", spread);
         orderBookData.put("bidMap", bidMap);
         orderBookData.put("lastId", lastId);
-        //inserimento stopQueue in array per serializzazione
+
+        //non salvo la stopQueue nel file orderBook.json perchè non è necessario visto che gli stop order vengono gestiti in memoria e non persistono dopo un riavvio del server
         
-        // FileWriter senza parametri SOVRASCRIVE completamente il file
+        //FileWriter senza parametri SOVRASCRIVE completamente il file
         try (FileWriter writer = new FileWriter(orderBookPath)){
             gson.toJson(orderBookData, writer);
-            writer.flush(); // Assicura che tutto venga scritto su disco
+            writer.flush(); //assicura che tutto venga scritto su disco
         }
         catch (IOException e){
             System.err.println("Errore durante l'aggiornamento dell'order book: " + e.getMessage());
@@ -102,37 +109,39 @@ public class OrderBook {
         }
     }
 
+    //funzione che gestisce un ordine di tipo ask limit
     public synchronized int askOrder(int size, int price, String user, ConcurrentSkipListMap<String, SocketUDPValue> socketMapUDP){
         int remaining = size;
         int orderId = getLastOrderID();
+
+        //scorro la bidMap per cercare di eseguire l'ordine
         for(Map.Entry<Integer, OrderValue> entry : bidMap.entrySet()){
             if(entry.getKey() >= price){
                 //la richiesta combacia con un ordine bid esistente
                 remaining = tryMatchOrder("ask", remaining, user, "bid", entry.getValue().userList, "limit", entry.getKey(), orderId, socketMapUDP);
             }
             if(remaining == 0){
+                //ordine completamente eseguito, quindi procedo ad aggiornare l'order book e ritorno l'orderId
                 updateOrderBook();
                 return orderId;
             }
 
-        //System.out.printf(Ansi.RED_BACKGROUND + "Inserting limit ask order: size %d, price %d, user %s\n" + Ansi.RESET, size, price, user);
         }
         if(remaining > 0){
-            //inserisco l'ordine nella orderbook
+            //ordine eseguito parzialmente o non eseguito affatto
+
+            //inserisco l'ordine nell'orderbook
             loadAskOrder(price, remaining, orderId, user);
-            //aggiorno lo spread
-            if(bidMap.isEmpty() == false){
-                spread = askMap.firstKey() - bidMap.firstKey();
-            }
-            else{
-                spread = askMap.firstKey();
-            }
         }
+
+        //aggiorno l'order book e ritorno l'orderId
         updateOrderBook();
         return orderId;
     }
 
+    //funzione per caricare un ordine di tipo ask limit nell'order book
     public synchronized void loadAskOrder(int price, int size, int orderId, String user){
+        //creo un nuovo UserValue per l'utente che ha effettuato l'ordine
         UserValue uv = new UserValue(size, orderId, user);
         if(askMap.containsKey(price)){
             //aggiorno l'OrderValue esistente
@@ -152,27 +161,39 @@ public class OrderBook {
         }
     }
 
+    //funzione che gestisce un ordine di tipo bid limit
     public synchronized int bidOrder(int size, int price, String user, ConcurrentSkipListMap<String, SocketUDPValue> socketMapUDP){
         int remaining = size;
         int orderId = getLastOrderID();
+
+        //scorro la askMap per cercare di eseguire l'ordine
         for(Map.Entry<Integer, OrderValue> entry : askMap.entrySet()){
             if(entry.getKey() <= price){
+                //la richiesta combacia con un ordine ask esistente
                 remaining = tryMatchOrder("bid", remaining, user, "ask", entry.getValue().userList, "limit", entry.getKey(), orderId, socketMapUDP);
             }
             if(remaining == 0){
+                //ordine completamente eseguito, quindi procedo ad aggiornare l'order book e ritorno l'orderId
                 updateOrderBook();
                 return orderId;
             }
         }
         if(remaining > 0){
+            //ordine eseguito parzialmente o non eseguito affatto
+
             //inserisco l'ordine nella orderbook
             loadBidOrder(price, remaining, orderId, user);
         }
+
+        //aggiorno l'order book e ritorno l'orderId
         updateOrderBook();
         return orderId;
     }
 
+
+    //funzione per caricare un ordine di tipo bid limit nell'order book
     public synchronized void loadBidOrder(int price, int size, int orderId, String user){
+        //creo un nuovo UserValue per l'utente che ha effettuato l'ordine
         UserValue uv = new UserValue(size, orderId, user);
         if(bidMap.containsKey(price)){
             //aggiorno l'OrderValue esistente
@@ -192,9 +213,15 @@ public class OrderBook {
         }
     }
 
+    //funzione di matching tra ordini di qualunque tipo
+    //prende in input le informazioni dell'ordine in arrivo e di quello esistente nell'order book, che ha combaciato con l'ordine in arrivo
     public synchronized int tryMatchOrder(String type1, int remaining, String user1, String type2, ConcurrentLinkedQueue<UserValue> userList, String orderType, int price, int orderId, ConcurrentSkipListMap<String, SocketUDPValue> socketMapUDP){
         //scorro la userList dell'OrderValue
         for(UserValue uv : userList){
+
+            //user1, orderId, type1, orderType sono relativi all'ordine in arrivo
+            //uv.user, uv.orderId, type2, "limit" sono relativi all'ordine esistente nell'order book
+
             if(uv.user.equals(user1) == false){
                 if(uv.size < remaining){
                     //l'ordine di user1 viene parzialmente completato da parte di uv (uv viene completamente eseguito)
@@ -253,6 +280,7 @@ public class OrderBook {
                 }
             }
         }
+        //aggiorno l'OrderValue nell'order book
         if(userList.isEmpty()){
             //rimuovo l'OrderValue dalla map
             if(type2.equals("bid")){
@@ -263,6 +291,7 @@ public class OrderBook {
             }
         }
         else{
+            //ricalcolo size e total
             int newSize = 0;
             int newTotal = 0;
             for(UserValue uv : userList){
@@ -270,6 +299,7 @@ public class OrderBook {
                 newTotal += uv.size * price;
             }
             OrderValue newOv = new OrderValue(newSize, newTotal, userList);
+            //aggiorno l'OrderValue nella map
             if(type2.equals("bid")){
                 bidMap.put(price, newOv);
             }
@@ -277,9 +307,11 @@ public class OrderBook {
                 askMap.put(price, newOv);
             }
         }
+        //ritorno la quantità rimanente dell'ordine in arrivo
         return remaining;
     }
 
+    //funzione che calcola la size totale di una mappa di ordini
     public synchronized int mapSize(ConcurrentSkipListMap<Integer, OrderValue> map){
         int totalSize = 0;
         for(Map.Entry<Integer, OrderValue> entry : map.entrySet()){
@@ -289,6 +321,7 @@ public class OrderBook {
 
     }
 
+    //funzione che calcola la size totale degli ordini di un utente in una mappa di ordini
     public synchronized int userOrderSize(ConcurrentSkipListMap<Integer, OrderValue> map, String user){
         int userSize = 0;
         for(Map.Entry<Integer, OrderValue> entry : map.entrySet()){
@@ -302,19 +335,27 @@ public class OrderBook {
         return userSize;
     }
 
+    //funzione che gestisce un ordine di tipo marketOrder
     public synchronized int marketOrder(String type, int size, String user, ConcurrentSkipListMap<String, SocketUDPValue> socketMapUDP){
         int remaining = size;
 
+        //gli ordini di tipo market non possono essere eseguiti se l'utente non ha abbastanza ordini nella direzione opposta
+        //in caso non si possa soddisfare, l'ordine viene rifiutato e viene ritornato -1
+
         if(type.equals("ask")){
             if(mapSize(bidMap) - userOrderSize(bidMap, user) < size){
+                //l'ordine non può essere eseguito completamente
                 return -1;
             }
 
             int orderId = getLastOrderID();
 
+            //scorro la bidMap per cercare di eseguire l'ordine
             for(Map.Entry<Integer, OrderValue> entry : bidMap.entrySet()){
+                //la richiesta combacia con un ordine bid esistente
                 remaining = tryMatchOrder(type, remaining, user, "bid", entry.getValue().userList, "market", entry.getKey(), orderId, socketMapUDP);
                 if(remaining == 0){
+                    //ordine completamente eseguito, quindi procedo ad aggiornare l'order book e ritorno l'orderId
                     updateOrderBook();
                     return orderId;
                 }
@@ -322,13 +363,18 @@ public class OrderBook {
         }
         else if(type.equals("bid")){
             if(mapSize(askMap) - userOrderSize(askMap, user) < size){
+                //l'ordine non può essere eseguito completamente
                 return -1;
             }
 
             int orderId = getLastOrderID();
+
+            //scorro la askMap per cercare di eseguire l'ordine
             for(Map.Entry<Integer, OrderValue> entry : askMap.entrySet()){
+                //la richiesta combacia con un ordine ask esistente
                 remaining = tryMatchOrder(type, remaining, user, "ask", entry.getValue().userList, "market", entry.getKey(), orderId, socketMapUDP);
                 if(remaining == 0){
+                    //ordine completamente eseguito, quindi procedo ad aggiornare l'order book e ritorno l'orderId
                     updateOrderBook();
                     return orderId;
                 }
@@ -337,14 +383,18 @@ public class OrderBook {
         return -1;
     }
 
+    //funzione che controlla la stopQueue per vedere se qualche stopOrder può essere eseguito
     public synchronized void checkStopOrders(ConcurrentSkipListMap<String, SocketUDPValue> socketMapUDP){
         //scorro la stopQueue
         for(StopValue sv : stopQueue){
             if(sv.type.equals("ask")){
                 if(bidMap.isEmpty() == false){
+                    //siccome bidMap è ordinata in modo decrescente, il primo elemento è il miglior bid
                     if(sv.price >= bidMap.firstKey()){
                         int remaining = sv.size;
+                        //scorro la bidMap per cercare di eseguire lo stopOrder
                         for(Map.Entry<Integer, OrderValue> entry : bidMap.entrySet()){
+                            //la richiesta combacia con un ordine bid esistente
                             remaining = tryMatchOrder(sv.type, remaining, sv.user, "bid", entry.getValue().userList, "market", entry.getKey(), sv.orderId, socketMapUDP);
                             if(remaining == 0){
                                 //rimuovo lo stopOrder dalla coda
@@ -359,9 +409,12 @@ public class OrderBook {
             }
             else{
                 if(askMap.isEmpty() == false){
+                    //siccome askMap è ordinata in modo crescente, il primo elemento è il miglior ask
                     if(sv.price <= askMap.firstKey()){
                         int remaining = sv.size;
+                        //scorro la askMap per cercare di eseguire lo stopOrder
                         for(Map.Entry<Integer, OrderValue> entry : askMap.entrySet()){
+                            //la richiesta combacia con un ordine ask esistente
                             remaining = tryMatchOrder(sv.type, remaining, sv.user, "ask", entry.getValue().userList, "market", entry.getKey(), sv.orderId, socketMapUDP);
                             if(remaining == 0){
                                 //rimuovo lo stopOrder dalla coda
@@ -377,12 +430,16 @@ public class OrderBook {
         }
     }
 
+    //funzione per ottenere un nuovo orderId
     public synchronized int getLastOrderID(){
         lastId += 1;
         return lastId;
     }
 
+    //funzione per cancellare un ordine dato l'orderId e l'utente che ha effettuato l'ordine
     public synchronized int cancelOrder(int orderId, String user){
+
+        //cerco l'ordine nella askMap
         for(Map.Entry<Integer, OrderValue> entry : askMap.entrySet()){
             OrderValue ov = entry.getValue();
             for(UserValue uv : ov.userList){
@@ -391,10 +448,14 @@ public class OrderBook {
                     ov.userList.remove(uv);
                     ov.size -= uv.size;
                     ov.total -= entry.getKey() * uv.size;
+
+                    //controllo se l'OrderValue è vuoto
                     if(ov.size <= 0){
+                        //rimuovo l'OrderValue dalla mappa
                         askMap.remove(entry.getKey());
                     }
                     else{
+                        //aggiorno l'OrderValue nella mappa
                         askMap.put(entry.getKey(), ov);
                     }
                     updateOrderBook();
@@ -403,6 +464,7 @@ public class OrderBook {
             }
         }
 
+        //cerco l'ordine nella bidMap
         for(Map.Entry<Integer, OrderValue> entry : bidMap.entrySet()){
             OrderValue ov = entry.getValue();
             for(UserValue uv : ov.userList){
@@ -411,10 +473,14 @@ public class OrderBook {
                     ov.userList.remove(uv);
                     ov.size -= uv.size;
                     ov.total -= entry.getKey() * uv.size;
+
+                    //controllo se l'OrderValue è vuoto
                     if(ov.size <= 0){
+                        //rimuovo l'OrderValue dalla mappa
                         bidMap.remove(entry.getKey());
                     }
                     else{
+                        //aggiorno l'OrderValue nella mappa
                         bidMap.put(entry.getKey(), ov);
                     }
                     updateOrderBook();
@@ -423,30 +489,38 @@ public class OrderBook {
             }
         }
 
-        //implementare controllo in stopOrder
+        //cerco l'ordine nella stopQueue
         for(StopValue sv : stopQueue){
             if(sv.orderId == orderId && sv.user.equals(user)){
+                //rimuovo l'ordine se trovato
                 stopQueue.remove(sv);
                 updateOrderBook();
                 return 100;
             }
         }
 
+        //ordine non trovato
         return 101;
     }
 
+    //funzione per notificare un utente tramite UDP dell'avvenuta esecuzione di un ordine
     public synchronized void notifyOrderUser(ConcurrentSkipListMap<String, SocketUDPValue> socketMapUDP, String user, int orderId, String type1, String orderType, int size, int price){
         int port = -1;
         InetAddress address = null;
+        //cerco la socket UDP dell'utente nella mappa
         for(Map.Entry<String,SocketUDPValue> entry : socketMapUDP.entrySet()){
             if(entry.getKey().equals(user)){
+                //ho trovato la socket UDP dell'utente
                 port = entry.getValue().port;
                 address = entry.getValue().address;
                 break;
             }
         }
+
+        //invio il messaggio UDP all'utente
         if(port != -1 && address != null){
             try(DatagramSocket DatagramSocketUDP = new DatagramSocket()){
+                //creo il messaggio Gson tramite la classe TradeNotifyUDP appena creata e lo invio sulla socket UDP
                 TradeNotifyUDP trade = new TradeNotifyUDP(orderId, type1, orderType, size, price, (int)(System.currentTimeMillis() / 1000L));
                 Gson gson = new Gson();
                 String message = gson.toJson(trade);
@@ -462,6 +536,7 @@ public class OrderBook {
         }
     }
 
+    //funzione per aggiungere una trade al file storicoOrdini.json
     public synchronized void pushTradeToHistory(int orderId, String type, String orderType, int size, int price, long timestamp){
         //aggiungo la trade al file storicoOrdini.json che è un file json contenente una chiave trades contenente un array di oggetti GsonTrade
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
@@ -486,8 +561,9 @@ public class OrderBook {
             FileWriter fileWriter = new FileWriter(storicoOrdiniPath);
             fileWriter.write("{\n  \"trades\": [\n");
         
-            Gson compactGson = new Gson(); // Gson senza pretty printing per gli oggetti dell'array
-        
+            Gson compactGson = new Gson();
+            
+            //scrivo ogni trade con la formattazione desiderata
             for(int i = 0; i < tradesArray.size(); i++){
                 fileWriter.write("    " + compactGson.toJson(tradesArray.get(i)));
                 if(i < tradesArray.size() - 1){
@@ -497,10 +573,7 @@ public class OrderBook {
             }
         
             fileWriter.write("  ]\n}");
-            fileWriter.close();
-
-            //System.out.println(Ansi.GREEN + "[--OrderBook--] " + Ansi.RESET + "Trade added to history: " + newTrade.toString() + "\n");
-        
+            fileWriter.close(); 
         }
         catch(IOException e){
             System.err.println(Ansi.RED + "[--OrderBook--] " + Ansi.RESET + "Error updating trade history: " + e.getMessage() + "\n");
@@ -508,8 +581,10 @@ public class OrderBook {
         }
     }
 
+    //funzione per ottenere lo storico dei prezzi di un dato mese e anno
     public synchronized String getPriceHistory(String month, String year){
         StringBuilder priceHistory = new StringBuilder();
+        //creo una mappa per memorizzare i dati di prezzo per ogni giorno del mese
         ConcurrentSkipListMap<Integer,DayPriceData> daysMap = new ConcurrentSkipListMap<>();
 
         try(JsonReader reader = new JsonReader(new FileReader(storicoOrdiniPath))){
@@ -517,6 +592,7 @@ public class OrderBook {
             JsonObject jsonObject = JsonParser.parseReader(reader).getAsJsonObject();
             JsonArray tradesArray = jsonObject.getAsJsonArray("trades");
             
+            //scorro l'array di trade per estrarre i dati di prezzo
             for(int i = 0; i < tradesArray.size(); i++){
                 JsonObject tradeObj = tradesArray.get(i).getAsJsonObject();
                 GsonTrade trade = gson.fromJson(tradeObj, GsonTrade.class);
@@ -539,16 +615,19 @@ public class OrderBook {
                 }
             }
 
-            //costruisco la stringa del price history
+            //costruisco la stringa del price history già pronta per la stampa, che poi verrà ritornata al client
 
             //inserisco l'intestazione
             priceHistory.append(String.format("\n" + Ansi.YELLOW_BACKGROUND + "Price History for %02d/%s:" + Ansi.RESET + "\n", Integer.parseInt(month), year));
             priceHistory.append(Ansi.BLUE_BACKGROUND + "Day  |  Open  |  Close  |  High  |  Low " + Ansi.RESET+ "\n");
             priceHistory.append("---------------------------------------\n");
             int bool = 0;
+            //inserisco i dati di ogni giorno
             for(Map.Entry<Integer, DayPriceData> entry : daysMap.entrySet()){
                 int day = entry.getKey();
                 DayPriceData dpd = entry.getValue();
+
+                //alterno il colore di sfondo per ogni riga
                 if(bool == 0){
                     priceHistory.append(String.format(Ansi.BLACK_BACKGROUND + "%02d   |  %5d |  %6d |  %5d |  %4d " + Ansi.RESET+ "\n", day, dpd.openPrice, dpd.closePrice, dpd.highPrice, dpd.lowPrice));
                     bool = 1;
@@ -569,13 +648,16 @@ public class OrderBook {
         return priceHistory.toString();
     }
 
+    //funzione per mostrare l'order book in formato stringa correttamente formattata
     public synchronized String showOrderBook(){
         StringBuilder obString = new StringBuilder();
+        //inserisco l'intestazione
         obString.append("\n" + Ansi.YELLOW_BACKGROUND + "Current Order Book:" + Ansi.RESET + "\n");
         obString.append(Ansi.RED_BACKGROUND + "   ASK ORDERS   " + Ansi.RESET + "\n");
         obString.append(Ansi.WHITE_BACKGROUND + "Price |  Size  " + Ansi.RESET + "\n");
         obString.append("----------------\n");
         int bool = 0;
+        //inserisco gli ordini ask
         for(Map.Entry<Integer, OrderValue> entry : askMap.entrySet()){
             int price = entry.getKey();
             OrderValue ov = entry.getValue();
@@ -589,6 +671,7 @@ public class OrderBook {
             }
         }
         obString.append("----------------\n");
+        //inserisco lo spread e lo coloro in base al suo valore
         if(spread < 0) obString.append(String.format(Ansi.WHITE_BACKGROUND + "Current Spread: " + Ansi.RED_BACKGROUND + "%d" + Ansi.RESET + "\n", spread));
         else obString.append(String.format(Ansi.WHITE_BACKGROUND + "Current Spread: " + Ansi.GREEN_BACKGROUND + "%d" + Ansi.RESET + "\n", spread));
         obString.append("----------------\n");
@@ -596,6 +679,7 @@ public class OrderBook {
         obString.append(Ansi.WHITE_BACKGROUND + "Price |  Size  " + Ansi.RESET + "\n");
         obString.append("----------------\n");
         bool = 0;
+        //inserisco gli ordini bid
         for(Map.Entry<Integer, OrderValue> entry : bidMap.entrySet()){
             int price = entry.getKey();
             OrderValue ov = entry.getValue();
@@ -613,6 +697,7 @@ public class OrderBook {
         obString.append(Ansi.WHITE_BACKGROUND + "Type | Price | Size | User " + Ansi.RESET + "\n");
         obString.append("--------------------------------\n");
         bool = 0;
+        //inserisco gli ordini stopOrder
         for(StopValue sv : stopQueue){
             if(bool == 0){
                 obString.append(String.format(Ansi.BLACK_BACKGROUND + "%4s | %5d | %4d | %s " + Ansi.RESET+ "\n", sv.type.toUpperCase(), sv.price, sv.size, sv.user));

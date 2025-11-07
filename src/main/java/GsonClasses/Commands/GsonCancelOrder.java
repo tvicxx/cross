@@ -2,6 +2,7 @@ package GsonClasses.Commands;
 
 import GsonClasses.Values;
 
+//classe per la serializzazione della richiesta di cancellazione di un ordine
 public class GsonCancelOrder extends Values{
     public int orderId;
 

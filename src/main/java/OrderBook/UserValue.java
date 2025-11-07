@@ -3,6 +3,7 @@ package OrderBook;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
+//classe che rappresenta il valore associato a un utente in un ordine dell'OrderBook
 public class UserValue {
     public int size;
     public int orderId;
