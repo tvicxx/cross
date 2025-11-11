@@ -3,12 +3,10 @@ package Eseguibili.Main;
 import java.io.*;
 import java.net.*;
 import java.util.*;
-//import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.google.gson.Gson;
 
-//import org.ietf.jgss.GSSException;
 
 import Eseguibili.Client.*;
 import Varie.*;
@@ -66,6 +64,7 @@ public class ClientMain{
     private static Gson gson = new Gson();
     private static GsonMess<Values> mesGson;
 
+    //struttura dati condivisa tra thread che memorizza flag di stato e dati condivisi
     public static class SharedData{
         public AtomicBoolean isLogged = new AtomicBoolean(false);          //flag utente loggato
         public AtomicBoolean isClosed = new AtomicBoolean(false); ;        //flag connessione chiusa
@@ -83,17 +82,22 @@ public class ClientMain{
 
         try{
             System.out.println("[Client] Loading configuration...");
+            //caricamento file di configurazione
             loadConfig();
 
+            //connessione al server TCP
             try(DatagramSocket SocketUDP  = new DatagramSocket()){
                 SocketTCP = new Socket(hostname, TCPport);
 
+                //lettura/scrittura su socket TCP
                 reader = new BufferedReader(new InputStreamReader(SocketTCP.getInputStream()));
                 writer = new PrintWriter(SocketTCP.getOutputStream(), true);
 
+                //avvio thread receiver TCP
                 receiverTCP = new Thread(new Receiver(SocketTCP, reader, printer, shared));
                 receiverTCP.start();
 
+                //gestione chiusura client
                 Runtime.getRuntime().addShutdownHook(new Thread(){
                     public void run(){
                         if(shared.isShuttingDown.get() == false){
@@ -106,14 +110,17 @@ public class ClientMain{
                     }
                 });
 
+                //interfaccia utente CLI
                 printer.print(welcome);
                 printer.prompt();
-                
+
+                //ciclo di lettura comandi da CLI
                 while(shared.isShuttingDown.get() == false){
                     String input = scannerInput.nextLine();
 
                     if(input == null || input.isEmpty()) continue;
 
+                    //controllo validità comando
                     if(checkCommand(input)){
                         String command[] = input.split("[(),\\s]+");
                         switch(command[0]){
@@ -192,7 +199,6 @@ public class ClientMain{
                                         if(shared.isLogged.get()){
                                             mesGson = new GsonMess<Values>("insertLimitOrder", new GsonLimitStopOrder(type, size, limitPrice));
                                             writer.println(gson.toJson(mesGson));
-                                            //System.out.println(gson.toJson(mesGson));
                                         }
                                         else{
                                             printer.print("[Client] "+ Ansi.RED + "You must be logged in to insert an order." + Ansi.RESET);
@@ -342,6 +348,7 @@ public class ClientMain{
         }
     }
 
+    //caricamento file di configurazione
     public static void loadConfig() throws FileNotFoundException, IOException{
         InputStream input = new FileInputStream(configFile);
         Properties prop = new Properties();
@@ -351,6 +358,7 @@ public class ClientMain{
         input.close();
     }
 
+    //controllo validità comando tramite regex
     public static boolean checkCommand(String input){
         String [] commandPatterns = {
             "register\\s*\\(\\s*[a-zA-Z0-9]+\\s*,\\s*\\S(?:.*\\S)?\\s*\\)$",
@@ -374,6 +382,7 @@ public class ClientMain{
         return false;
     }
 
+    //chiusura connessione client e thread associati
     public static void closeConnection(){
         try{
             if(receiverTCP != null && receiverTCP.isAlive()){

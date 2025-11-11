@@ -32,9 +32,10 @@ public class Receiver implements Runnable{
     public void run(){
         try{
             String message;
+
+            //lettura messaggi dal server
             while(Thread.currentThread().isInterrupted() == false && socketTCP.isClosed() == false && (message = reader.readLine()) != null){
                 JsonObject jsonMess = JsonParser.parseString(message).getAsJsonObject();
-                //printer.print("[Client-Receiver] " + Ansi.GREEN + "Message received from server: " + message + Ansi.RESET);
                 
                 if(jsonMess.get("response") != null){
                     if(jsonMess.get("response").getAsInt() == 100){

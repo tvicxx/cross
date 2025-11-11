@@ -1,3 +1,0 @@
-SCRIVERE NELLA RELAZIONE!!!!!!!!!!!
-
-- precisare nella compilazione che per eseguire bisogna essere nella cartella root (cioè la cartella "cross")

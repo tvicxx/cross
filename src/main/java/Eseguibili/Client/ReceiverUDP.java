@@ -27,7 +27,6 @@ public class ReceiverUDP implements Runnable{
                 java.net.DatagramPacket packet = new java.net.DatagramPacket(buffer, buffer.length);
 
                 socket.receive(packet);
-                //printer.print("[Client-ReceiverUDP] " + Ansi.GREEN + "UDP packet received from " + packet.getAddress().toString() + ":" + packet.getPort() + Ansi.RESET);
                 String message = new String(packet.getData(), 0, packet.getLength());
 
                 Gson gson = new Gson();
